@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>M7A – trenažér (PDF + geo klikání)</title>
+<title>M7A – trenažér (obrázky + geo klikání)</title>
 
 <style>
   :root{
@@ -81,7 +81,7 @@
   .dotGreen{background:rgba(34,197,94,.9)}
   .dotGray{background:rgba(255,255,255,.25)}
 
-  /* Split layout (left answers + right PDF) */
+  /* Split layout: vlevo odpovědi, vpravo obrázek */
   .split{
     display:grid;
     grid-template-columns: 1.02fr .98fr;
@@ -92,13 +92,14 @@
   @media (max-width: 980px){
     .split{ grid-template-columns: 1fr; }
   }
-  .pdfpanel{
+
+  .imgpanel{
     background:rgba(255,255,255,.03);
     border:1px solid var(--stroke);
     border-radius:16px;
     overflow:hidden;
   }
-  .pdfhead{
+  .imghead{
     display:flex;
     gap:10px;
     align-items:center;
@@ -107,12 +108,24 @@
     background:rgba(255,255,255,.03);
     border-bottom:1px solid rgba(255,255,255,.08);
   }
-  .pdftitle{font-weight:900}
-  .pdfframe{
-    width:100%;
-    height:72vh;
-    border:0;
+  .imgtitle{font-weight:900}
+  .imgwrap{
+    padding:10px;
     background:#000;
+  }
+  .taskimg{
+    width:100%;
+    height:auto;
+    display:block;
+    border-radius:12px;
+    background:#000;
+    object-fit:contain;
+  }
+  .imgnote{
+    padding:10px 12px;
+    border-top:1px solid rgba(255,255,255,.08);
+    color:var(--muted);
+    font-size:13px;
   }
 
   /* Geo panel */
@@ -132,6 +145,51 @@
     overflow:hidden;
     background:rgba(255,255,255,.03);
   }
+
+  /* Modal full-screen obrázek */
+  .modal{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.78);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:12px;
+    z-index:9999;
+  }
+  .modal.open{ display:flex; }
+  .modalcard{
+    width:min(1100px, 100%);
+    height:min(92vh, 100%);
+    background:#0a0f1b;
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:16px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .modalbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 12px;
+    background:rgba(255,255,255,.04);
+    border-bottom:1px solid rgba(255,255,255,.10);
+  }
+  .modalbar b{ font-size:14px; }
+  .modalcontent{
+    flex:1;
+    overflow:auto;
+    background:#000;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modalimg{
+    width:100%;
+    height:auto;
+    display:block;
+    transform-origin: 0 0;
+  }
+  .zoombtns{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 
@@ -142,12 +200,11 @@
       <div>
         <h1>M7A – trenažér</h1>
         <div class="muted small">
-          Vpravo je PDF (ze stejné složky). Vlevo žák odpovídá. Úlohy 8 a 9 jsou klikací (SVG) a vyhodnocují se tolerancí.
+          Vpravo je obrázek zadání úlohy (1.jpg…16.jpg) ze stejné složky. Úlohy 8 a 9 jsou klikací (SVG).
         </div>
       </div>
       <div class="row" style="gap:10px">
         <div class="pill"><span id="qno">1</span>/<span id="qtotal">1</span></div>
-        <button class="ghost" type="button" id="openPdfGlobal">PDF zadání</button>
       </div>
     </div>
 
@@ -187,13 +244,19 @@
           </div>
         </div>
 
-        <!-- RIGHT: PDF -->
-        <div class="pdfpanel">
-          <div class="pdfhead">
-            <div class="pdftitle">PDF zadání</div>
-            <button class="ghost" type="button" id="openPdfBtn">Otevřít stránku v nové záložce</button>
+        <!-- RIGHT: IMAGE -->
+        <div class="imgpanel">
+          <div class="imghead">
+            <div class="imgtitle" id="imgTitle">Zadání (1.jpg)</div>
+            <div class="zoombtns">
+              <button class="ghost" type="button" id="imgReloadBtn">Obnovit</button>
+              <button class="ghost" type="button" id="imgOpenBtn">Zvětšit</button>
+            </div>
           </div>
-          <iframe class="pdfframe" id="pdfFrame" title="PDF zadání"></iframe>
+          <div class="imgwrap">
+            <img id="taskImg" class="taskimg" alt="Zadání úlohy" loading="eager">
+          </div>
+          <div class="imgnote" id="imgNote">Pokud je úloha ve spodní části, posuň obrázek níž (scroll).</div>
         </div>
       </div>
     </div>
@@ -214,15 +277,35 @@
 
       <div id="resultTable"></div>
     </div>
+  </div>
+</div>
 
+<!-- Modal for full screen image -->
+<div class="modal" id="imgModal" aria-hidden="true">
+  <div class="modalcard">
+    <div class="modalbar">
+      <b id="modalTitle">Zadání</b>
+      <div class="zoombtns">
+        <button class="ghost" type="button" id="zoomOut">−</button>
+        <button class="ghost" type="button" id="zoomReset">100%</button>
+        <button class="ghost" type="button" id="zoomIn">+</button>
+        <button class="ghost" type="button" id="modalClose">Zavřít</button>
+      </div>
+    </div>
+    <div class="modalcontent" id="modalContent">
+      <img id="modalImg" class="modalimg" alt="Zadání ve velkém">
+    </div>
   </div>
 </div>
 
 <script>
 /* =========================
-   PDF (ve stejné složce)
+   CONFIG: obrázky ve stejné složce
 ========================= */
-const PDF_URL = "./M7A_2025_TS.pdf";
+function taskImagePath(taskNo){
+  // očekává 1.jpg ... 16.jpg
+  return `./${taskNo}.jpg`;
+}
 
 /* =========================
    HELPERS
@@ -290,70 +373,79 @@ function intersectLineCircle(P0, d, C, r){
 }
 
 /* =========================
-   QUESTIONS (podle tvého rozpisu stran)
+   QUESTIONS
+   - task: číslo úlohy pro obrázek (1..16)
+   - id: zobrazené číslo (1.1, 1.2…)
 ========================= */
 const QUESTIONS = [
-  // strana 2: úloha 1 + úloha 2 (druhá půlka)
-  { id:"1.1", pdfPage:2, type:"text", prompt:"Úloha 1 – odpověď 1.1 (viz PDF vpravo).", answer:["18:40"] },
-  { id:"1.2", pdfPage:2, type:"text", prompt:"Úloha 1 – odpověď 1.2 (viz PDF vpravo).", answer:["33","33min","33minut","33 minut","33min."] },
-  { id:"2.1", pdfPage:2, type:"text", prompt:"Úloha 2 – odpověď 2.1 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["-1/2","−1/2"] },
-  { id:"2.2", pdfPage:2, type:"text", prompt:"Úloha 2 – odpověď 2.2 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["3/4"] },
+  // Úloha 1 (obrázek 1.jpg)
+  { id:"1.1", task:1, type:"text", prompt:"Úloha 1 – odpověď 1.1", answer:["18:40"] },
+  { id:"1.2", task:1, type:"text", prompt:"Úloha 1 – odpověď 1.2", answer:["33","33min","33minut","33 minut","33min."] },
 
-  // strana 3: úloha 3 + úloha 4 (druhá půlka)
-  { id:"3.1", pdfPage:3, type:"text", prompt:"Úloha 3.1 – napiš číslo ze silně ohraničeného kroužku (viz PDF vpravo).", answer:["120"] },
-  { id:"3.2", pdfPage:3, type:"text", prompt:"Úloha 3.2 – napiš číslo ze silně ohraničeného kroužku (viz PDF vpravo).", answer:["48"] },
-  { id:"4.1", pdfPage:3, type:"text", prompt:"Úloha 4.1 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["600","600kč","600 Kč"] },
-  { id:"4.2", pdfPage:3, type:"text", prompt:"Úloha 4.2 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["200","200kč","200 Kč","o200","o 200"] },
-  { id:"4.3", pdfPage:3, type:"text", prompt:"Úloha 4.3 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["1900","1 900","1900 Kč","1 900 Kč","1900kč"] },
+  // Úloha 2 (obrázek 2.jpg)
+  { id:"2.1", task:2, type:"text", prompt:"Úloha 2 – odpověď 2.1", answer:["-1/2","−1/2"] },
+  { id:"2.2", task:2, type:"text", prompt:"Úloha 2 – odpověď 2.2", answer:["3/4"] },
 
-  // strana 4: úloha 5 + úloha 6 (druhá půlka)
-  { id:"5.1", pdfPage:4, type:"text", prompt:"Úloha 5.1 (viz PDF vpravo).", answer:["21","21kč","21 Kč"] },
-  { id:"5.2", pdfPage:4, type:"text", prompt:"Úloha 5.2 (viz PDF vpravo).", answer:["42","42kč","42 Kč"] },
-  { id:"6.1", pdfPage:4, type:"text", prompt:"Úloha 6.1 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["77"] },
-  { id:"6.2", pdfPage:4, type:"text", prompt:"Úloha 6.2 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["3"] },
-  { id:"6.3", pdfPage:4, type:"text", prompt:"Úloha 6.3 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["7","o7","o 7","o 7 kartiček","o7kartiček"] },
+  // Úloha 3 (3.jpg)
+  { id:"3.1", task:3, type:"text", prompt:"Úloha 3.1", answer:["120"] },
+  { id:"3.2", task:3, type:"text", prompt:"Úloha 3.2", answer:["48"] },
 
-  // strana 5: úloha 7
-  { id:"7.1", pdfPage:5, type:"text", prompt:"Úloha 7.1 (viz PDF vpravo).", answer:["5","5cm","5 cm"] },
-  { id:"7.2", pdfPage:5, type:"text", prompt:"Úloha 7.2 (viz PDF vpravo).", answer:["110","110cm2","110 cm2","110cm²","110 cm²"] },
+  // Úloha 4 (4.jpg)
+  { id:"4.1", task:4, type:"text", prompt:"Úloha 4.1", answer:["600","600kč","600 Kč"] },
+  { id:"4.2", task:4, type:"text", prompt:"Úloha 4.2", answer:["200","200kč","200 Kč","o200","o 200"] },
+  { id:"4.3", task:4, type:"text", prompt:"Úloha 4.3", answer:["1900","1 900","1900 Kč","1 900 Kč","1900kč"] },
 
-  // strana 6: úloha 8 (geo klikání)
-  { id:"8", pdfPage:6, type:"geo8", prompt:"Úloha 8 (viz PDF vpravo). V interaktivním nákresu klikni na bod A.", answer:["(geo)"] },
+  // Úloha 5 (5.jpg)
+  { id:"5.1", task:5, type:"text", prompt:"Úloha 5.1", answer:["21","21kč","21 Kč"] },
+  { id:"5.2", task:5, type:"text", prompt:"Úloha 5.2", answer:["42","42kč","42 Kč"] },
 
-  // strana 7: úloha 9 (geo klikání)
-  { id:"9", pdfPage:7, type:"geo9", prompt:"Úloha 9 (viz PDF vpravo). V interaktivním nákresu klikni na obě možné polohy bodu H.", answer:["(geo)"] },
+  // Úloha 6 (6.jpg)
+  { id:"6.1", task:6, type:"text", prompt:"Úloha 6.1", answer:["77"] },
+  { id:"6.2", task:6, type:"text", prompt:"Úloha 6.2", answer:["3"] },
+  { id:"6.3", task:6, type:"text", prompt:"Úloha 6.3", answer:["7","o7","o 7","o 7 kartiček","o7kartiček"] },
 
-  // strana 8: úloha 10 (A/N)
-  { id:"10.1", pdfPage:8, type:"mc2", prompt:"Úloha 10.1 (viz PDF vpravo): zvol A nebo N.", choices:["A","N"], answer:["N"] },
-  { id:"10.2", pdfPage:8, type:"mc2", prompt:"Úloha 10.2 (viz PDF vpravo): zvol A nebo N.", choices:["A","N"], answer:["A"] },
-  { id:"10.3", pdfPage:8, type:"mc2", prompt:"Úloha 10.3 (viz PDF vpravo): zvol A nebo N.", choices:["A","N"], answer:["N"] },
+  // Úloha 7 (7.jpg)
+  { id:"7.1", task:7, type:"text", prompt:"Úloha 7.1", answer:["5","5cm","5 cm"] },
+  { id:"7.2", task:7, type:"text", prompt:"Úloha 7.2", answer:["110","110cm2","110 cm2","110cm²","110 cm²"] },
 
-  // strana 9: úlohy 11–13 (A–E)
-  { id:"11", pdfPage:9, type:"mc5", prompt:"Úloha 11 (viz PDF vpravo): vyber A–E.", choices:["A","B","C","D","E"], answer:["B"] },
-  { id:"12", pdfPage:9, type:"mc5", prompt:"Úloha 12 (viz PDF vpravo): vyber A–E.", choices:["A","B","C","D","E"], answer:["C"] },
-  { id:"13", pdfPage:9, type:"mc5", prompt:"Úloha 13 (viz PDF vpravo): vyber A–E.", choices:["A","B","C","D","E"], answer:["A"] },
+  // Úloha 8 (8.jpg + geo8)
+  { id:"8", task:8, type:"geo8", prompt:"Úloha 8 – klikni na bod A v interaktivním nákresu", answer:["(geo)"] },
 
-  // strana 10: úloha 14 (A–E)
-  { id:"14", pdfPage:10, type:"mc5", prompt:"Úloha 14 (viz PDF vpravo): vyber A–E.", choices:["A","B","C","D","E"], answer:["D"] },
+  // Úloha 9 (9.jpg + geo9)
+  { id:"9", task:9, type:"geo9", prompt:"Úloha 9 – klikni na obě možné polohy bodu H", answer:["(geo)"] },
 
-  // strana 11: úloha 15 (A–F)
-  { id:"15.1", pdfPage:11, type:"mc6", prompt:"Úloha 15.1 (viz PDF vpravo): vyber A–F.", choices:["A","B","C","D","E","F"], answer:["A"] },
-  { id:"15.2", pdfPage:11, type:"mc6", prompt:"Úloha 15.2 (viz PDF vpravo): vyber A–F.", choices:["A","B","C","D","E","F"], answer:["E"] },
-  { id:"15.3", pdfPage:11, type:"mc6", prompt:"Úloha 15.3 (viz PDF vpravo): vyber A–F.", choices:["A","B","C","D","E","F"], answer:["F"] },
+  // Úloha 10 (10.jpg)
+  { id:"10.1", task:10, type:"mc2", prompt:"Úloha 10.1 – zvol A nebo N", choices:["A","N"], answer:["N"] },
+  { id:"10.2", task:10, type:"mc2", prompt:"Úloha 10.2 – zvol A nebo N", choices:["A","N"], answer:["A"] },
+  { id:"10.3", task:10, type:"mc2", prompt:"Úloha 10.3 – zvol A nebo N", choices:["A","N"], answer:["N"] },
 
-  // strana 12: úloha 16
-  { id:"16.1", pdfPage:12, type:"text", prompt:"Úloha 16.1 (viz PDF vpravo).", answer:["38","38."] },
-  { id:"16.2", pdfPage:12, type:"text", prompt:"Úloha 16.2 (viz PDF vpravo).", answer:["23"] },
-  { id:"16.3", pdfPage:12, type:"text", prompt:"Úloha 16.3 (viz PDF vpravo) – zapiš poměr, např. 52:49.", answer:["52:49","52 : 49","52∶49"] }
+  // Úloha 11–13 (11.jpg? Ne — podle tvého rozpisu jsou na jedné straně, ale ty chceš 1.jpg…16.jpg,
+  // takže zde použijeme 11.jpg pro úlohu 11, 12.jpg pro 12, 13.jpg pro 13, nebo můžeš dát společný obrázek.
+  // Já to nastavím 11->11.jpg, 12->12.jpg, 13->13.jpg. Pokud máš naopak společný obrázek, řekni a upravím mapu.
+  { id:"11", task:11, type:"mc5", prompt:"Úloha 11 – vyber A–E", choices:["A","B","C","D","E"], answer:["B"] },
+  { id:"12", task:12, type:"mc5", prompt:"Úloha 12 – vyber A–E", choices:["A","B","C","D","E"], answer:["C"] },
+  { id:"13", task:13, type:"mc5", prompt:"Úloha 13 – vyber A–E", choices:["A","B","C","D","E"], answer:["A"] },
+
+  // Úloha 14 (14.jpg)
+  { id:"14", task:14, type:"mc5", prompt:"Úloha 14 – vyber A–E", choices:["A","B","C","D","E"], answer:["D"] },
+
+  // Úloha 15 (15.jpg)
+  { id:"15.1", task:15, type:"mc6", prompt:"Úloha 15.1 – vyber A–F", choices:["A","B","C","D","E","F"], answer:["A"] },
+  { id:"15.2", task:15, type:"mc6", prompt:"Úloha 15.2 – vyber A–F", choices:["A","B","C","D","E","F"], answer:["E"] },
+  { id:"15.3", task:15, type:"mc6", prompt:"Úloha 15.3 – vyber A–F", choices:["A","B","C","D","E","F"], answer:["F"] },
+
+  // Úloha 16 (16.jpg)
+  { id:"16.1", task:16, type:"text", prompt:"Úloha 16.1", answer:["38","38."] },
+  { id:"16.2", task:16, type:"text", prompt:"Úloha 16.2", answer:["23"] },
+  { id:"16.3", task:16, type:"text", prompt:"Úloha 16.3 – zapiš poměr, např. 52:49", answer:["52:49","52 : 49","52∶49"] }
 ];
 
 /* =========================
    STATE
 ========================= */
 let idx = 0;
-const user = {};  // { [id]: string } + pro geo: user["8"]={ax,ay,...} user["9"]={clicks,...}
+const user = {}; // text/mc: user[id]=string; geo: user["8"]={...}, user["9"]={...}
 let finished = false;
-
 $("#qtotal").textContent = QUESTIONS.length;
 
 /* =========================
@@ -373,7 +465,7 @@ function isAnswered(q){
 }
 
 /* =========================
-   NAVIGATOR
+   NAV
 ========================= */
 function renderNav(){
   const nav = $("#navgrid");
@@ -391,33 +483,91 @@ function renderNav(){
 }
 
 /* =========================
-   PDF PANEL
+   IMAGE PANEL
 ========================= */
-function setPdfForQuestion(q){
-  const page = q.pdfPage || 1;
-  const frame = $("#pdfFrame");
-  if(frame){
-    frame.src = `${PDF_URL}#page=${page}&zoom=page-width`;
-  }
-  const btn = $("#openPdfBtn");
-  if(btn){
-    btn.onclick = () => window.open(`${PDF_URL}#page=${page}`, "_blank", "noopener");
-  }
+function setImageForQuestion(q){
+  const src = taskImagePath(q.task);
+  $("#imgTitle").textContent = `Zadání (${q.task}.jpg)`;
+  const img = $("#taskImg");
+
+  img.onerror = () => {
+    img.style.opacity = "1";
+    img.alt = `Chybí soubor ${q.task}.jpg ve stejné složce jako index.html`;
+  };
+
+  // cache-buster při "Obnovit"
+  img.dataset.base = src;
+  img.src = src;
+
+  $("#imgOpenBtn").onclick = () => openModal(src, `Zadání – úloha ${q.task}`);
+  $("#imgReloadBtn").onclick = () => {
+    img.src = `${src}?v=${Date.now()}`;
+  };
+
+  // hint text
+  $("#imgNote").textContent =
+    (q.task===2 || q.task===4 || q.task===6) ? "Tahle úloha byla v papíru ve spodní části stránky – tady jen posuň obrázek níž (scroll)." :
+    "Pokud něco není vidět, posuň obrázek (scroll) nebo klikni na Zvětšit.";
 }
+
+/* =========================
+   MODAL ZOOM
+========================= */
+let zoom = 1;
+
+function openModal(src, title){
+  $("#modalTitle").textContent = title;
+  const m = $("#imgModal");
+  const mi = $("#modalImg");
+  zoom = 1;
+  mi.style.transform = `scale(${zoom})`;
+  mi.src = src;
+  m.classList.add("open");
+  m.setAttribute("aria-hidden","false");
+
+  // scroll top
+  $("#modalContent").scrollTop = 0;
+  $("#modalContent").scrollLeft = 0;
+}
+
+function closeModal(){
+  const m = $("#imgModal");
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden","true");
+}
+
+$("#modalClose").addEventListener("click", closeModal);
+$("#imgModal").addEventListener("click", (e)=>{
+  if(e.target.id === "imgModal") closeModal();
+});
+document.addEventListener("keydown",(e)=>{
+  if(e.key === "Escape") closeModal();
+});
+$("#zoomIn").addEventListener("click", ()=>{
+  zoom = Math.min(3.5, zoom + 0.25);
+  $("#modalImg").style.transform = `scale(${zoom})`;
+});
+$("#zoomOut").addEventListener("click", ()=>{
+  zoom = Math.max(1, zoom - 0.25);
+  $("#modalImg").style.transform = `scale(${zoom})`;
+});
+$("#zoomReset").addEventListener("click", ()=>{
+  zoom = 1;
+  $("#modalImg").style.transform = `scale(${zoom})`;
+});
 
 /* =========================
    GEO RENDERERS
 ========================= */
 function renderGeo8(container){
-  // vlastní nákres – matematicky odpovídá zadání, není kopie obrázku z PDF
   const B = {x:140, y:80};
   const C = {x:160, y:220};
   const O = {x:340, y:220};
 
   const dBC = vnorm(vsub(C,B));
   const axis = vnorm(vsub(O,B));
-  const d2 = vnorm(reflectVector(dBC, axis)); // druhé rameno
-  const r = dist(O,B); // |OB|
+  const d2 = vnorm(reflectVector(dBC, axis));
+  const r = dist(O,B);
 
   const inter = intersectLineCircle(B, d2, O, r)
     .map(p => ({p, t: vdot(vsub(p,B), d2)}))
@@ -467,15 +617,12 @@ function renderGeo8(container){
         </defs>
         <rect x="0" y="0" width="520" height="320" fill="url(#grid8)"/>
 
-        <line x1="${B.x}" y1="${B.y}" x2="${pBC2.x}" y2="${pBC2.y}"
-              stroke="rgba(255,255,255,.55)" stroke-width="3" />
-        <line x1="${B.x}" y1="${B.y}" x2="${pBO2.x}" y2="${pBO2.y}"
-              stroke="rgba(255,255,255,.35)" stroke-width="3" stroke-dasharray="8 8"/>
+        <line x1="${B.x}" y1="${B.y}" x2="${pBC2.x}" y2="${pBC2.y}" stroke="rgba(255,255,255,.55)" stroke-width="3" />
+        <line x1="${B.x}" y1="${B.y}" x2="${pBO2.x}" y2="${pBO2.y}" stroke="rgba(255,255,255,.35)" stroke-width="3" stroke-dasharray="8 8"/>
 
         <g id="geo8_helpers" style="display:${state.showHelp ? "block":"none"}">
           <circle cx="${O.x}" cy="${O.y}" r="${r}" fill="none" stroke="rgba(34,197,94,.45)" stroke-width="3"/>
-          <line x1="${B.x}" y1="${B.y}" x2="${pD2.x}" y2="${pD2.y}"
-                stroke="rgba(34,197,94,.55)" stroke-width="3" />
+          <line x1="${B.x}" y1="${B.y}" x2="${pD2.x}" y2="${pD2.y}" stroke="rgba(34,197,94,.55)" stroke-width="3" />
         </g>
 
         ${drawPoint("B", B)}
@@ -659,15 +806,12 @@ function render(){
     q.type==="mc2" ? "A / N" :
     q.type==="mc5" ? "výběr A–E" :
     q.type==="mc6" ? "výběr A–F" :
-    q.type==="geo8" || q.type==="geo9" ? "geometrie (klikáním)" : "";
+    (q.type==="geo8" || q.type==="geo9") ? "geometrie (klikáním)" : "";
 
   $("#qhint").textContent =
-    (q.pdfPage===2 && q.id.startsWith("2.")) ? "pozor: úloha je ve spodní části strany" :
-    (q.pdfPage===3 && q.id.startsWith("4.")) ? "pozor: úloha je ve spodní části strany" :
-    (q.pdfPage===4 && q.id.startsWith("6.")) ? "pozor: úloha je ve spodní části strany" :
-    "";
+    (q.task===2 || q.task===4 || q.task===6) ? "Pozor: v originálu to bylo ve spodní části – tady jen scrolluj obrázek." : "";
 
-  setPdfForQuestion(q);
+  setImageForQuestion(q);
 
   const area = $("#input-area");
   area.innerHTML = "";
@@ -695,12 +839,8 @@ function render(){
     area.appendChild(wrap);
   }
 
-  if(q.type === "geo8"){
-    renderGeo8(area);
-  }
-  if(q.type === "geo9"){
-    renderGeo9(area);
-  }
+  if(q.type === "geo8") renderGeo8(area);
+  if(q.type === "geo9") renderGeo9(area);
 
   $("#prevBtn").disabled = (idx===0);
   $("#nextBtn").disabled = (idx===QUESTIONS.length-1);
@@ -740,7 +880,7 @@ function buildResults(){
 function resultsText(pack){
   const lines = [];
   const now = new Date();
-  lines.push(`M7A – výsledky (trenažér + PDF + geo klikání)`);
+  lines.push(`M7A – výsledky (trenažér s obrázky + geo klikání)`);
   lines.push(`Datum: ${now.toLocaleString('cs-CZ')}`);
   lines.push(`Skóre: ${pack.correct} / ${pack.total}`);
   lines.push(``);
@@ -802,12 +942,7 @@ $("#prevBtn").addEventListener("click", ()=>{ if(idx>0){ idx--; render(); } });
 $("#nextBtn").addEventListener("click", ()=>{ if(idx<QUESTIONS.length-1){ idx++; render(); } });
 $("#finishBtn").addEventListener("click", showResults);
 
-$("#openPdfGlobal").addEventListener("click", ()=>{
-  const q = QUESTIONS[idx];
-  const page = q.pdfPage || 1;
-  window.open(`${PDF_URL}#page=${page}`, "_blank", "noopener");
-});
-
+/* init */
 render();
 </script>
 </body>
