@@ -3,16 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>M7A – trenažér (PDF vpravo)</title>
-
-<!-- MathJax (jen pro případ, kdybys chtěl něco doplnit jako vzorec do vlastních poznámek) -->
-<script>
-  window.MathJax = {
-    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$']] },
-    svg: { fontCache: 'global' }
-  };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<title>M7A – trenažér (PDF + geo klikání)</title>
 
 <style>
   :root{
@@ -123,15 +114,24 @@
     border:0;
     background:#000;
   }
-  .checkline{
+
+  /* Geo panel */
+  .geohead{
     display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-    margin-top:10px;
+    margin-top:12px;
     padding:10px 12px;
     border:1px solid rgba(255,255,255,.10);
     border-radius:12px;
     background:rgba(255,255,255,.03);
   }
-  .checkline input{transform:scale(1.15)}
+  .geohead input{transform:scale(1.15)}
+  .geobox{
+    margin-top:10px;
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:16px;
+    overflow:hidden;
+    background:rgba(255,255,255,.03);
+  }
 </style>
 </head>
 
@@ -142,7 +142,7 @@
       <div>
         <h1>M7A – trenažér</h1>
         <div class="muted small">
-          Vpravo je originální PDF zadání (iframe), vlevo žák jen vyplňuje odpovědi. Skok na stránku se řídí úlohou.
+          Vpravo je PDF (ze stejné složky). Vlevo žák odpovídá. Úlohy 8 a 9 jsou klikací (SVG) a vyhodnocují se tolerancí.
         </div>
       </div>
       <div class="row" style="gap:10px">
@@ -200,14 +200,10 @@
 
     <div id="screen-result" style="display:none">
       <div class="row">
-        <div class="pill"><b>Skóre (automaticky vyhodnotitelné):</b> <span id="score"></span></div>
+        <div class="pill"><b>Skóre:</b> <span id="score"></span></div>
         <div class="muted small" id="scoreDetail"></div>
       </div>
       <div class="hr"></div>
-
-      <div class="muted small" style="margin-bottom:8px">
-        Úlohy 8 a 9 jsou konstrukce → aplikace je nehodnotí automaticky (sebehodnocení).
-      </div>
 
       <div class="btns">
         <button class="primary" id="copyBtn">Zkopírovat výsledky</button>
@@ -224,9 +220,9 @@
 
 <script>
 /* =========================
-   CONSTANTS
+   PDF (ve stejné složce)
 ========================= */
-const PDF_URL = "https://prijimacky.cermat.cz/files/files/M7A_2025_TS.pdf";
+const PDF_URL = "./M7A_2025_TS.pdf";
 
 /* =========================
    HELPERS
@@ -251,76 +247,101 @@ function escapeHtml(s){
 }
 
 /* =========================
-   QUESTIONS
-   pdfPage je dle tvého rozpisu:
-   p2: úl 1 + úl 2 (2 je "druhá půlka" -> stejná strana, jen je potřeba posunout)
-   p3: úl 3 + úl 4
-   p4: úl 5 + úl 6
-   p5: úl 7
-   p6: úl 8
-   p7: úl 9
-   p8: úl 10
-   p9: úl 11-13
-   p10: úl 14
-   p11: úl 15
-   p12: úl 16
+   GEOMETRY HELPERS
+========================= */
+function vsub(a,b){ return {x:a.x-b.x, y:a.y-b.y}; }
+function vadd(a,b){ return {x:a.x+b.x, y:a.y+b.y}; }
+function vmul(a,k){ return {x:a.x*k, y:a.y*k}; }
+function vdot(a,b){ return a.x*b.x + a.y*b.y; }
+function vlen(a){ return Math.hypot(a.x,a.y); }
+function vnorm(a){
+  const L = vlen(a) || 1;
+  return {x:a.x/L, y:a.y/L};
+}
+function vproj(u, ontoUnit){
+  const t = vdot(u, ontoUnit);
+  return vmul(ontoUnit, t);
+}
+function vperp(u, ontoUnit){
+  const proj = vproj(u, ontoUnit);
+  return vsub(u, proj);
+}
+function reflectVector(u, axisUnit){
+  const up = vproj(u, axisUnit);
+  const uq = vperp(u, axisUnit);
+  return vsub(up, uq);
+}
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function intersectLineCircle(P0, d, C, r){
+  const f = vsub(P0, C);
+  const a = vdot(d,d);
+  const b = 2*vdot(f,d);
+  const c = vdot(f,f) - r*r;
+  const disc = b*b - 4*a*c;
+  if(disc < -1e-9) return [];
+  if(Math.abs(disc) < 1e-9){
+    const t = -b/(2*a);
+    return [vadd(P0, vmul(d,t))];
+  }
+  const s = Math.sqrt(disc);
+  const t1 = (-b + s)/(2*a);
+  const t2 = (-b - s)/(2*a);
+  return [vadd(P0, vmul(d,t1)), vadd(P0, vmul(d,t2))];
+}
+
+/* =========================
+   QUESTIONS (podle tvého rozpisu stran)
 ========================= */
 const QUESTIONS = [
-  // Úloha 1 (strana 2)
+  // strana 2: úloha 1 + úloha 2 (druhá půlka)
   { id:"1.1", pdfPage:2, type:"text", prompt:"Úloha 1 – odpověď 1.1 (viz PDF vpravo).", answer:["18:40"] },
   { id:"1.2", pdfPage:2, type:"text", prompt:"Úloha 1 – odpověď 1.2 (viz PDF vpravo).", answer:["33","33min","33minut","33 minut","33min."] },
+  { id:"2.1", pdfPage:2, type:"text", prompt:"Úloha 2 – odpověď 2.1 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["-1/2","−1/2"] },
+  { id:"2.2", pdfPage:2, type:"text", prompt:"Úloha 2 – odpověď 2.2 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["3/4"] },
 
-  // Úloha 2 (strana 2 druhá půlka)
-  { id:"2.1", pdfPage:2, type:"text", prompt:"Úloha 2 – odpověď 2.1 (viz PDF vpravo; úloha je v druhé části strany).", answer:["-1/2","−1/2"] },
-  { id:"2.2", pdfPage:2, type:"text", prompt:"Úloha 2 – odpověď 2.2 (viz PDF vpravo; úloha je v druhé části strany).", answer:["3/4"] },
-
-  // Úloha 3 (strana 3)
+  // strana 3: úloha 3 + úloha 4 (druhá půlka)
   { id:"3.1", pdfPage:3, type:"text", prompt:"Úloha 3.1 – napiš číslo ze silně ohraničeného kroužku (viz PDF vpravo).", answer:["120"] },
   { id:"3.2", pdfPage:3, type:"text", prompt:"Úloha 3.2 – napiš číslo ze silně ohraničeného kroužku (viz PDF vpravo).", answer:["48"] },
+  { id:"4.1", pdfPage:3, type:"text", prompt:"Úloha 4.1 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["600","600kč","600 Kč"] },
+  { id:"4.2", pdfPage:3, type:"text", prompt:"Úloha 4.2 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["200","200kč","200 Kč","o200","o 200"] },
+  { id:"4.3", pdfPage:3, type:"text", prompt:"Úloha 4.3 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["1900","1 900","1900 Kč","1 900 Kč","1900kč"] },
 
-  // Úloha 4 (strana 3 druhá půlka)
-  { id:"4.1", pdfPage:3, type:"text", prompt:"Úloha 4.1 (viz PDF vpravo; úloha je v druhé části strany).", answer:["600","600kč","600 Kč"] },
-  { id:"4.2", pdfPage:3, type:"text", prompt:"Úloha 4.2 (viz PDF vpravo; úloha je v druhé části strany).", answer:["200","200kč","200 Kč","o200","o 200"] },
-  { id:"4.3", pdfPage:3, type:"text", prompt:"Úloha 4.3 (viz PDF vpravo; úloha je v druhé části strany).", answer:["1900","1 900","1900 Kč","1 900 Kč","1900kč"] },
-
-  // Úloha 5 (strana 4)
+  // strana 4: úloha 5 + úloha 6 (druhá půlka)
   { id:"5.1", pdfPage:4, type:"text", prompt:"Úloha 5.1 (viz PDF vpravo).", answer:["21","21kč","21 Kč"] },
   { id:"5.2", pdfPage:4, type:"text", prompt:"Úloha 5.2 (viz PDF vpravo).", answer:["42","42kč","42 Kč"] },
+  { id:"6.1", pdfPage:4, type:"text", prompt:"Úloha 6.1 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["77"] },
+  { id:"6.2", pdfPage:4, type:"text", prompt:"Úloha 6.2 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["3"] },
+  { id:"6.3", pdfPage:4, type:"text", prompt:"Úloha 6.3 (viz PDF vpravo; úloha je ve spodní části strany).", answer:["7","o7","o 7","o 7 kartiček","o7kartiček"] },
 
-  // Úloha 6 (strana 4 druhá půlka)
-  { id:"6.1", pdfPage:4, type:"text", prompt:"Úloha 6.1 (viz PDF vpravo; úloha je v druhé části strany).", answer:["77"] },
-  { id:"6.2", pdfPage:4, type:"text", prompt:"Úloha 6.2 (viz PDF vpravo; úloha je v druhé části strany).", answer:["3"] },
-  { id:"6.3", pdfPage:4, type:"text", prompt:"Úloha 6.3 (viz PDF vpravo; úloha je v druhé části strany).", answer:["7","o7","o 7","o 7 kartiček","o7kartiček"] },
-
-  // Úloha 7 (strana 5)
+  // strana 5: úloha 7
   { id:"7.1", pdfPage:5, type:"text", prompt:"Úloha 7.1 (viz PDF vpravo).", answer:["5","5cm","5 cm"] },
   { id:"7.2", pdfPage:5, type:"text", prompt:"Úloha 7.2 (viz PDF vpravo).", answer:["110","110cm2","110 cm2","110cm²","110 cm²"] },
 
-  // Úloha 8 (strana 6) – konstrukce, automaticky nevyhodnotitelné
-  { id:"8", pdfPage:6, type:"self", prompt:"Úloha 8 je konstrukční (viz PDF vpravo). Označ, že máš hotovo.", answer:[] },
+  // strana 6: úloha 8 (geo klikání)
+  { id:"8", pdfPage:6, type:"geo8", prompt:"Úloha 8 (viz PDF vpravo). V interaktivním nákresu klikni na bod A.", answer:["(geo)"] },
 
-  // Úloha 9 (strana 7) – konstrukce, automaticky nevyhodnotitelné
-  { id:"9", pdfPage:7, type:"self", prompt:"Úloha 9 je konstrukční (viz PDF vpravo). Označ, že máš hotovo.", answer:[] },
+  // strana 7: úloha 9 (geo klikání)
+  { id:"9", pdfPage:7, type:"geo9", prompt:"Úloha 9 (viz PDF vpravo). V interaktivním nákresu klikni na obě možné polohy bodu H.", answer:["(geo)"] },
 
-  // Úloha 10 (strana 8) – A/N
+  // strana 8: úloha 10 (A/N)
   { id:"10.1", pdfPage:8, type:"mc2", prompt:"Úloha 10.1 (viz PDF vpravo): zvol A nebo N.", choices:["A","N"], answer:["N"] },
   { id:"10.2", pdfPage:8, type:"mc2", prompt:"Úloha 10.2 (viz PDF vpravo): zvol A nebo N.", choices:["A","N"], answer:["A"] },
   { id:"10.3", pdfPage:8, type:"mc2", prompt:"Úloha 10.3 (viz PDF vpravo): zvol A nebo N.", choices:["A","N"], answer:["N"] },
 
-  // Úloha 11–13 (strana 9) – A–E
+  // strana 9: úlohy 11–13 (A–E)
   { id:"11", pdfPage:9, type:"mc5", prompt:"Úloha 11 (viz PDF vpravo): vyber A–E.", choices:["A","B","C","D","E"], answer:["B"] },
   { id:"12", pdfPage:9, type:"mc5", prompt:"Úloha 12 (viz PDF vpravo): vyber A–E.", choices:["A","B","C","D","E"], answer:["C"] },
   { id:"13", pdfPage:9, type:"mc5", prompt:"Úloha 13 (viz PDF vpravo): vyber A–E.", choices:["A","B","C","D","E"], answer:["A"] },
 
-  // Úloha 14 (strana 10) – A–E
+  // strana 10: úloha 14 (A–E)
   { id:"14", pdfPage:10, type:"mc5", prompt:"Úloha 14 (viz PDF vpravo): vyber A–E.", choices:["A","B","C","D","E"], answer:["D"] },
 
-  // Úloha 15 (strana 11) – A–F, 3 podúlohy
+  // strana 11: úloha 15 (A–F)
   { id:"15.1", pdfPage:11, type:"mc6", prompt:"Úloha 15.1 (viz PDF vpravo): vyber A–F.", choices:["A","B","C","D","E","F"], answer:["A"] },
   { id:"15.2", pdfPage:11, type:"mc6", prompt:"Úloha 15.2 (viz PDF vpravo): vyber A–F.", choices:["A","B","C","D","E","F"], answer:["E"] },
   { id:"15.3", pdfPage:11, type:"mc6", prompt:"Úloha 15.3 (viz PDF vpravo): vyber A–F.", choices:["A","B","C","D","E","F"], answer:["F"] },
 
-  // Úloha 16 (strana 12)
+  // strana 12: úloha 16
   { id:"16.1", pdfPage:12, type:"text", prompt:"Úloha 16.1 (viz PDF vpravo).", answer:["38","38."] },
   { id:"16.2", pdfPage:12, type:"text", prompt:"Úloha 16.2 (viz PDF vpravo).", answer:["23"] },
   { id:"16.3", pdfPage:12, type:"text", prompt:"Úloha 16.3 (viz PDF vpravo) – zapiš poměr, např. 52:49.", answer:["52:49","52 : 49","52∶49"] }
@@ -330,7 +351,7 @@ const QUESTIONS = [
    STATE
 ========================= */
 let idx = 0;
-const user = {};  // { [id]: string } or {8:true}
+const user = {};  // { [id]: string } + pro geo: user["8"]={ax,ay,...} user["9"]={clicks,...}
 let finished = false;
 
 $("#qtotal").textContent = QUESTIONS.length;
@@ -342,14 +363,17 @@ function isAnswered(q){
   if(q.type==="text" || q.type==="mc2" || q.type==="mc5" || q.type==="mc6"){
     return !!(String(user[q.id] ?? "").trim());
   }
-  if(q.type==="self"){
-    return user[q.id] === true;
+  if(q.type==="geo8"){
+    return user["8"]?.ax != null;
+  }
+  if(q.type==="geo9"){
+    return (user["9"]?.clicks?.length ?? 0) >= 2;
   }
   return false;
 }
 
 /* =========================
-   NAVIGATOR (shows q.id)
+   NAVIGATOR
 ========================= */
 function renderNav(){
   const nav = $("#navgrid");
@@ -364,18 +388,6 @@ function renderNav(){
     b.addEventListener("click", () => { if(!finished){ idx = i; render(); } });
     nav.appendChild(b);
   });
-}
-
-/* =========================
-   CHECKING
-========================= */
-function isCorrect(q){
-  if(q.type==="self") return null; // nevyhodnoceno
-  if(q.type === "text" || q.type === "mc2" || q.type === "mc5" || q.type === "mc6"){
-    const v = norm(user[q.id] ?? "");
-    return q.answer.some(a => norm(a) === v);
-  }
-  return null;
 }
 
 /* =========================
@@ -394,6 +406,244 @@ function setPdfForQuestion(q){
 }
 
 /* =========================
+   GEO RENDERERS
+========================= */
+function renderGeo8(container){
+  // vlastní nákres – matematicky odpovídá zadání, není kopie obrázku z PDF
+  const B = {x:140, y:80};
+  const C = {x:160, y:220};
+  const O = {x:340, y:220};
+
+  const dBC = vnorm(vsub(C,B));
+  const axis = vnorm(vsub(O,B));
+  const d2 = vnorm(reflectVector(dBC, axis)); // druhé rameno
+  const r = dist(O,B); // |OB|
+
+  const inter = intersectLineCircle(B, d2, O, r)
+    .map(p => ({p, t: vdot(vsub(p,B), d2)}))
+    .filter(x => x.t > 1e-6)
+    .sort((a,b)=>a.t-b.t);
+
+  const A = inter.length ? inter[0].p : {x:0,y:0};
+
+  const state = user["8"] || {ax:null, ay:null, showHelp:false, _tol:12, _correctA:A};
+  state._correctA = A;
+  user["8"] = state;
+
+  const far = 900;
+  const pBC2 = vadd(B, vmul(dBC, far));
+  const pBO2 = vadd(B, vmul(axis, far));
+  const pD2  = vadd(B, vmul(d2, far));
+
+  function drawPoint(label, P){
+    return `
+      <g>
+        <line x1="${P.x-6}" y1="${P.y-6}" x2="${P.x+6}" y2="${P.y+6}" stroke="rgba(255,255,255,.85)" stroke-width="2"/>
+        <line x1="${P.x-6}" y1="${P.y+6}" x2="${P.x+6}" y2="${P.y-6}" stroke="rgba(255,255,255,.85)" stroke-width="2"/>
+        <text x="${P.x+10}" y="${P.y-10}" font-size="16" fill="rgba(255,255,255,.9)">${label}</text>
+      </g>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="geohead">
+      <div style="flex:1">
+        <b>Interaktivní nákres</b><br>
+        <span class="muted small">Klikni na bod <b>A</b>. (Pomocné čáry lze zapnout.)</span>
+      </div>
+      <label class="muted small" style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="geo8_help" ${state.showHelp ? "checked":""}>
+        Pomocné čáry
+      </label>
+      <button class="ghost" type="button" id="geo8_clear">Smazat klik</button>
+    </div>
+
+    <div class="geobox">
+      <svg id="geo8_svg" width="100%" viewBox="0 0 520 320" style="display:block; cursor:crosshair">
+        <defs>
+          <pattern id="grid8" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M20 0H0V20" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect x="0" y="0" width="520" height="320" fill="url(#grid8)"/>
+
+        <line x1="${B.x}" y1="${B.y}" x2="${pBC2.x}" y2="${pBC2.y}"
+              stroke="rgba(255,255,255,.55)" stroke-width="3" />
+        <line x1="${B.x}" y1="${B.y}" x2="${pBO2.x}" y2="${pBO2.y}"
+              stroke="rgba(255,255,255,.35)" stroke-width="3" stroke-dasharray="8 8"/>
+
+        <g id="geo8_helpers" style="display:${state.showHelp ? "block":"none"}">
+          <circle cx="${O.x}" cy="${O.y}" r="${r}" fill="none" stroke="rgba(34,197,94,.45)" stroke-width="3"/>
+          <line x1="${B.x}" y1="${B.y}" x2="${pD2.x}" y2="${pD2.y}"
+                stroke="rgba(34,197,94,.55)" stroke-width="3" />
+        </g>
+
+        ${drawPoint("B", B)}
+        ${drawPoint("C", C)}
+        ${drawPoint("O", O)}
+
+        <circle id="geo8_marker" r="7" fill="rgba(59,130,246,.95)" stroke="white" stroke-width="2"
+                ${state.ax==null ? 'display="none"' : ''} cx="${state.ax ?? 0}" cy="${state.ay ?? 0}"></circle>
+      </svg>
+    </div>
+  `;
+
+  const svg = container.querySelector("#geo8_svg");
+  svg.addEventListener("click", (evt)=>{
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const sp = pt.matrixTransform(svg.getScreenCTM().inverse());
+    state.ax = sp.x; state.ay = sp.y;
+    const mk = container.querySelector("#geo8_marker");
+    mk.setAttribute("display","block");
+    mk.setAttribute("cx", state.ax);
+    mk.setAttribute("cy", state.ay);
+    renderNav();
+  });
+
+  container.querySelector("#geo8_help").addEventListener("change",(e)=>{
+    state.showHelp = e.target.checked;
+    container.querySelector("#geo8_helpers").style.display = state.showHelp ? "block":"none";
+  });
+
+  container.querySelector("#geo8_clear").addEventListener("click", ()=>{
+    state.ax = null; state.ay = null;
+    render();
+  });
+}
+
+function renderGeo9(container){
+  const E = {x:170, y:260};
+  const F = {x:390, y:200};
+  const G = {x:380, y:90};
+
+  const state = user["9"] || {clicks:[], showHelp:false, _tol:12};
+  user["9"] = state;
+
+  const dEF = vnorm(vsub(F,E));
+  const r = dist(F,G);
+  const Hs = intersectLineCircle(G, dEF, E, r);
+  state._correctHs = Hs;
+
+  function drawX(label, P){
+    return `
+      <g>
+        <line x1="${P.x-6}" y1="${P.y-6}" x2="${P.x+6}" y2="${P.y+6}" stroke="rgba(255,255,255,.85)" stroke-width="2"/>
+        <line x1="${P.x-6}" y1="${P.y+6}" x2="${P.x+6}" y2="${P.y-6}" stroke="rgba(255,255,255,.85)" stroke-width="2"/>
+        <text x="${P.x+10}" y="${P.y-10}" font-size="16" fill="rgba(255,255,255,.9)">${label}</text>
+      </g>
+    `;
+  }
+
+  const p1 = vadd(G, vmul(dEF, -900));
+  const p2 = vadd(G, vmul(dEF,  900));
+
+  container.innerHTML = `
+    <div class="geohead">
+      <div style="flex:1">
+        <b>Interaktivní nákres</b><br>
+        <span class="muted small">Klikni na <b>obě</b> možné polohy bodu <b>H</b>. (Max. 2 kliky; třetí klik začne znovu.)</span>
+      </div>
+      <label class="muted small" style="display:flex;gap:10px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="geo9_help" ${state.showHelp ? "checked":""}>
+        Pomocné čáry
+      </label>
+      <button class="ghost" type="button" id="geo9_clear">Smazat kliky</button>
+    </div>
+
+    <div class="geobox">
+      <svg id="geo9_svg" width="100%" viewBox="0 0 520 320" style="display:block; cursor:crosshair">
+        <defs>
+          <pattern id="grid9" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M20 0H0V20" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect x="0" y="0" width="520" height="320" fill="url(#grid9)"/>
+
+        <g id="geo9_helpers" style="display:${state.showHelp ? "block":"none"}">
+          <circle cx="${E.x}" cy="${E.y}" r="${r}" fill="none" stroke="rgba(34,197,94,.45)" stroke-width="3"/>
+          <line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="rgba(34,197,94,.55)" stroke-width="3"/>
+        </g>
+
+        ${drawX("E",E)}
+        ${drawX("F",F)}
+        ${drawX("G",G)}
+
+        <g id="geo9_marks"></g>
+      </svg>
+    </div>
+  `;
+
+  const svg = container.querySelector("#geo9_svg");
+  const marks = container.querySelector("#geo9_marks");
+
+  function redrawMarks(){
+    marks.innerHTML = state.clicks.map((p, i) => `
+      <g>
+        <circle cx="${p.x}" cy="${p.y}" r="7" fill="rgba(59,130,246,.95)" stroke="white" stroke-width="2"></circle>
+        <text x="${p.x+10}" y="${p.y+5}" font-size="14" fill="rgba(255,255,255,.9)">H${i+1}</text>
+      </g>
+    `).join("");
+  }
+
+  svg.addEventListener("click",(evt)=>{
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const sp = pt.matrixTransform(svg.getScreenCTM().inverse());
+
+    if(state.clicks.length < 2) state.clicks.push({x:sp.x, y:sp.y});
+    else state.clicks = [{x:sp.x, y:sp.y}];
+
+    redrawMarks();
+    renderNav();
+  });
+
+  container.querySelector("#geo9_clear").addEventListener("click", ()=>{
+    state.clicks = [];
+    redrawMarks();
+    renderNav();
+  });
+
+  container.querySelector("#geo9_help").addEventListener("change",(e)=>{
+    state.showHelp = e.target.checked;
+    container.querySelector("#geo9_helpers").style.display = state.showHelp ? "block":"none";
+  });
+
+  redrawMarks();
+}
+
+/* =========================
+   CHECKING
+========================= */
+function isCorrect(q){
+  if(q.type === "text" || q.type === "mc2" || q.type === "mc5" || q.type === "mc6"){
+    const v = norm(user[q.id] ?? "");
+    return q.answer.some(a => norm(a) === v);
+  }
+
+  if(q.type === "geo8"){
+    const st = user["8"];
+    if(!st || st.ax==null) return false;
+    return dist({x:st.ax,y:st.ay}, st._correctA) <= (st._tol || 12);
+  }
+
+  if(q.type === "geo9"){
+    const st = user["9"];
+    if(!st || (st.clicks?.length ?? 0) < 2) return false;
+    const Hs = st._correctHs || [];
+    if(Hs.length < 2) return false;
+    const tol = st._tol || 12;
+    const c1 = st.clicks[0], c2 = st.clicks[1];
+    const H1 = Hs[0], H2 = Hs[1];
+    const okA = (dist(c1,H1)<=tol && dist(c2,H2)<=tol);
+    const okB = (dist(c1,H2)<=tol && dist(c2,H1)<=tol);
+    return okA || okB;
+  }
+
+  return false;
+}
+
+/* =========================
    RENDER
 ========================= */
 function render(){
@@ -404,25 +654,21 @@ function render(){
   $("#qid").textContent = `Úloha ${q.id}`;
   $("#prompt").textContent = q.prompt;
 
-  // info řádek
   $("#qtype").textContent =
     q.type==="text" ? "otevřená odpověď" :
     q.type==="mc2" ? "A / N" :
     q.type==="mc5" ? "výběr A–E" :
     q.type==="mc6" ? "výběr A–F" :
-    q.type==="self" ? "konstrukce (sebehodnocení)" : "";
+    q.type==="geo8" || q.type==="geo9" ? "geometrie (klikáním)" : "";
 
   $("#qhint").textContent =
-    (q.pdfPage===2 && (q.id.startsWith("2."))) ? "pozor: úloha je ve spodní části strany" :
-    (q.pdfPage===3 && (q.id.startsWith("4."))) ? "pozor: úloha je ve spodní části strany" :
-    (q.pdfPage===4 && (q.id.startsWith("6."))) ? "pozor: úloha je ve spodní části strany" :
-    (q.type==="self") ? "výsledek se nehodnotí automaticky" :
+    (q.pdfPage===2 && q.id.startsWith("2.")) ? "pozor: úloha je ve spodní části strany" :
+    (q.pdfPage===3 && q.id.startsWith("4.")) ? "pozor: úloha je ve spodní části strany" :
+    (q.pdfPage===4 && q.id.startsWith("6.")) ? "pozor: úloha je ve spodní části strany" :
     "";
 
-  // PDF vpravo
   setPdfForQuestion(q);
 
-  // input vlevo
   const area = $("#input-area");
   area.innerHTML = "";
 
@@ -449,21 +695,11 @@ function render(){
     area.appendChild(wrap);
   }
 
-  if(q.type === "self"){
-    const box = document.createElement("div");
-    box.className = "checkline";
-    box.innerHTML = `
-      <label style="display:flex;gap:10px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="selfDone">
-        <b>Mám hotovo</b>
-      </label>
-      <span class="muted small">Pozn.: aplikace nepozná správnost konstrukce, jen eviduje dokončení.</span>
-    `;
-    area.appendChild(box);
-
-    const cb = box.querySelector("#selfDone");
-    cb.checked = (user[q.id] === true);
-    cb.addEventListener("change", () => { user[q.id] = cb.checked; renderNav(); });
+  if(q.type === "geo8"){
+    renderGeo8(area);
+  }
+  if(q.type === "geo9"){
+    renderGeo9(area);
   }
 
   $("#prevBtn").disabled = (idx===0);
@@ -471,10 +707,6 @@ function render(){
   $("#finishBtn").style.display = (idx===QUESTIONS.length-1) ? "inline-block" : "none";
 
   renderNav();
-
-  if (window.MathJax && MathJax.typesetPromise) {
-    MathJax.typesetPromise();
-  }
 }
 
 /* =========================
@@ -482,44 +714,39 @@ function render(){
 ========================= */
 function buildResults(){
   let correct = 0;
-  let graded = 0;
-  let selfCount = 0;
-
   const rows = QUESTIONS.map(q => {
-    if(q.type==="self"){
-      selfCount++;
-      const done = (user[q.id] === true);
-      return { id:q.id, your: done ? "HOTOVO" : "—", corr:"(sebehodnocení)", ok: null };
-    }
-
-    graded++;
     const ok = isCorrect(q);
     if(ok) correct++;
 
-    const your = (user[q.id] ?? "") || "—";
-    const corr = q.answer[0];
+    let your = "—";
+    if(q.type==="text" || q.type==="mc2" || q.type==="mc5" || q.type==="mc6"){
+      your = (user[q.id] ?? "") || "—";
+    } else if(q.type==="geo8"){
+      your = (user["8"]?.ax==null) ? "—" : "klik";
+    } else if(q.type==="geo9"){
+      your = (user["9"]?.clicks?.length ?? 0) >= 2 ? "2 kliky" : "—";
+    }
+
+    let corr = q.answer?.[0] ?? "";
+    if(q.type==="geo8") corr = "klik na bod A";
+    if(q.type==="geo9") corr = "2 polohy H";
 
     return { id:q.id, your, corr, ok };
   });
 
-  return { correct, graded, selfCount, rows };
+  return { correct, total: QUESTIONS.length, rows };
 }
 
 function resultsText(pack){
   const lines = [];
   const now = new Date();
-  lines.push(`M7A – výsledky (trenažér s PDF)`);
+  lines.push(`M7A – výsledky (trenažér + PDF + geo klikání)`);
   lines.push(`Datum: ${now.toLocaleString('cs-CZ')}`);
-  lines.push(`Skóre (automaticky vyhodnotitelné): ${pack.correct} / ${pack.graded}`);
-  lines.push(`Sebehodnocení (konstrukce): ${pack.selfCount} úlohy`);
+  lines.push(`Skóre: ${pack.correct} / ${pack.total}`);
   lines.push(``);
   lines.push(`Detail:`);
   pack.rows.forEach(r=>{
-    if(r.ok === null){
-      lines.push(`- ${r.id}: SEBEHODNOCENI | stav: ${r.your}`);
-    } else {
-      lines.push(`- ${r.id}: ${r.ok ? "OK" : "X"} | odpověď: ${r.your} | správně: ${r.corr}`);
-    }
+    lines.push(`- ${r.id}: ${r.ok ? "OK" : "X"} | odpověď: ${r.your} | správně: ${r.corr}`);
   });
   return lines.join("\n");
 }
@@ -531,8 +758,8 @@ function showResults(){
   $("#screen-quiz").style.display = "none";
   $("#screen-result").style.display = "block";
 
-  $("#score").textContent = `${pack.correct} / ${pack.graded}`;
-  $("#scoreDetail").textContent = `Hodnocené úlohy: ${pack.graded}, konstrukce (sebehodnocení): ${pack.selfCount}`;
+  $("#score").textContent = `${pack.correct} / ${pack.total}`;
+  $("#scoreDetail").textContent = `Správně: ${pack.correct}, špatně/bez odpovědi: ${pack.total-pack.correct}`;
 
   const html = `
     <table>
@@ -545,11 +772,7 @@ function showResults(){
             <td><b>${r.id}</b></td>
             <td>${escapeHtml(r.your)}</td>
             <td>${escapeHtml(r.corr)}</td>
-            <td>${
-              r.ok === null
-                ? '<span class="note">sebehodnocení</span>'
-                : (r.ok ? '<span class="ok">OK</span>' : '<span class="bad">X</span>')
-            }</td>
+            <td>${r.ok ? '<span class="ok">OK</span>' : '<span class="bad">X</span>'}</td>
           </tr>
         `).join("")}
       </tbody>
@@ -558,7 +781,7 @@ function showResults(){
   $("#resultTable").innerHTML = html;
 
   const body = resultsText(pack);
-  const subject = `M7A výsledky – ${pack.correct}/${pack.graded} (konstrukce: ${pack.selfCount})`;
+  const subject = `M7A výsledky – ${pack.correct}/${pack.total}`;
   $("#mailtoLink").href = `mailto:jan.bernard@gyby.cz?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
   $("#copyBtn").onclick = async () => {
@@ -585,7 +808,6 @@ $("#openPdfGlobal").addEventListener("click", ()=>{
   window.open(`${PDF_URL}#page=${page}`, "_blank", "noopener");
 });
 
-// init
 render();
 </script>
 </body>
