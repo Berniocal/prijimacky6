@@ -52,6 +52,7 @@
   button.primary{background:linear-gradient(135deg,#2563eb,#22c55e)}
   button.ghost{background:transparent;border:1px solid var(--stroke)}
   button:disabled{opacity:.45;cursor:not-allowed}
+  
   table{width:100%;border-collapse:collapse;margin-top:10px}
   th,td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}
   .ok{color:var(--ok);font-weight:900}
@@ -171,6 +172,10 @@
       <div class="btns">
         <button class="ghost" id="prevBtn">Zpět</button>
         <button class="primary" id="nextBtn">Další</button>
+        <button class="ghost" type="button" onclick="window.open('https://prijimacky.cermat.cz/files/files/M7A_2025_TS.pdf','_blank','noopener')">
+  PDF zadání
+</button>
+
         <button class="ghost" id="finishBtn" style="margin-left:auto; display:none;">Vyhodnotit</button>
       </div>
 
