@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>M7A – trenažér (obrázky + geo klikání)</title>
+<title>M7A – trenažér (obrázky + bodování + geo)</title>
 
 <style>
   :root{
@@ -13,20 +13,21 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,Arial,sans-serif}
-  .wrap{max-width:1200px;margin:0 auto;padding:18px}
-  .card{background:var(--card);border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-  h1{margin:0 0 6px;font-size:22px}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px}
+  .card{background:var(--card);border-radius:18px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  h1{margin:0 0 6px;font-size:20px}
   .muted{color:var(--muted)}
   .small{font-size:13px}
-  .hr{height:1px;background:rgba(255,255,255,.08);margin:14px 0}
+  .hr{height:1px;background:rgba(255,255,255,.08);margin:12px 0}
   .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
   .pill{padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.06)}
   .qid{font-size:14px;color:var(--muted);margin-top:4px}
-  .prompt{margin-top:10px;font-size:17px}
-  .input{margin-top:14px}
+  .prompt{margin-top:8px;font-size:16px}
+  .input{margin-top:12px}
 
   input[type="text"]{
-    width:min(520px,100%);padding:12px 12px;border-radius:12px;border:1px solid var(--stroke);
+    width:100%;
+    padding:12px 12px;border-radius:12px;border:1px solid var(--stroke);
     background:var(--panel);color:var(--ink);font-size:16px;outline:none
   }
 
@@ -38,7 +39,7 @@
   }
   .choice.sel{outline:2px solid rgba(34,197,94,.7);border-color:rgba(34,197,94,.9)}
 
-  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
   button{
     border:0;border-radius:12px;padding:10px 12px;background:var(--btn);color:var(--ink);
     font-weight:900;cursor:pointer
@@ -51,7 +52,6 @@
   th,td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}
   .ok{color:var(--ok);font-weight:900}
   .bad{color:var(--bad);font-weight:900}
-  .note{color:var(--muted);font-size:13px}
 
   /* Navigator */
   .navwrap{
@@ -75,44 +75,27 @@
   }
   .navbtn.active{outline:2px solid rgba(59,130,246,.85)}
   .navbtn.answered{border-color:rgba(34,197,94,.8)}
-  .navlegend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
-  .dot{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px;vertical-align:middle}
-  .dotBlue{background:rgba(59,130,246,.9)}
-  .dotGreen{background:rgba(34,197,94,.9)}
-  .dotGray{background:rgba(255,255,255,.25)}
 
-  /* Split layout: vlevo odpovědi, vpravo obrázek */
-  .split{
-    display:grid;
-    grid-template-columns: 1.02fr .98fr;
-    gap:14px;
-    align-items:start;
-    margin-top:8px;
-  }
-  @media (max-width: 980px){
-    .split{ grid-template-columns: 1fr; }
-  }
-
+  /* Full-width image panel */
   .imgpanel{
+    margin-top:10px;
     background:rgba(255,255,255,.03);
     border:1px solid var(--stroke);
     border-radius:16px;
     overflow:hidden;
   }
   .imghead{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    justify-content:space-between;
+    display:flex; gap:10px; align-items:center; justify-content:space-between;
     padding:10px 12px;
     background:rgba(255,255,255,.03);
     border-bottom:1px solid rgba(255,255,255,.08);
   }
   .imgtitle{font-weight:900}
   .imgwrap{
-    padding:10px;
+    padding:8px;
     background:#000;
   }
+  /* klíčové: obrázek přes celou šířku karty */
   .taskimg{
     width:100%;
     height:auto;
@@ -146,7 +129,7 @@
     background:rgba(255,255,255,.03);
   }
 
-  /* Modal full-screen obrázek */
+  /* Modal full-screen image */
   .modal{
     position:fixed; inset:0;
     background:rgba(0,0,0,.78);
@@ -176,7 +159,6 @@
     background:rgba(255,255,255,.04);
     border-bottom:1px solid rgba(255,255,255,.10);
   }
-  .modalbar b{ font-size:14px; }
   .modalcontent{
     flex:1;
     overflow:auto;
@@ -190,6 +172,7 @@
     transform-origin: 0 0;
   }
   .zoombtns{display:flex;gap:8px;flex-wrap:wrap}
+
 </style>
 </head>
 
@@ -200,7 +183,7 @@
       <div>
         <h1>M7A – trenažér</h1>
         <div class="muted small">
-          Vpravo je obrázek zadání úlohy (1.jpg…16.jpg) ze stejné složky. Úlohy 8 a 9 jsou klikací (SVG).
+          Zadání je přes obrázky <b>1.jpg…16.jpg</b> ve stejné složce. Body a správné odpovědi dle klíče.
         </div>
       </div>
       <div class="row" style="gap:10px">
@@ -209,63 +192,54 @@
     </div>
 
     <div class="navwrap">
-      <div class="muted small"><b>Přehled úloh:</b> kliknutím přejdeš na úlohu</div>
+      <div class="muted small"><b>Přehled úloh</b> (kliknutím přejdeš):</div>
       <div class="navgrid" id="navgrid"></div>
-      <div class="navlegend muted small">
-        <span><span class="dot dotBlue"></span>aktuální</span>
-        <span><span class="dot dotGreen"></span>zodpovězeno</span>
-        <span><span class="dot dotGray"></span>nezodpovězeno</span>
+    </div>
+
+    <!-- FULL WIDTH IMAGE -->
+    <div class="imgpanel">
+      <div class="imghead">
+        <div class="imgtitle" id="imgTitle">Zadání (1.jpg)</div>
+        <div class="zoombtns">
+          <button class="ghost" type="button" id="imgReloadBtn">Obnovit</button>
+          <button class="ghost" type="button" id="imgOpenBtn">Zvětšit</button>
+        </div>
       </div>
+      <div class="imgwrap">
+        <img id="taskImg" class="taskimg" alt="Zadání úlohy" loading="eager">
+      </div>
+      <div class="imgnote" id="imgNote">Když něco není vidět, posuň stránku níž nebo klikni na Zvětšit.</div>
     </div>
 
     <div class="hr"></div>
 
     <div id="screen-quiz">
-      <div class="split">
-        <!-- LEFT: answers -->
-        <div>
-          <div class="row">
-            <div class="muted small" id="qtype"></div>
-            <div class="muted small" id="qhint"></div>
-          </div>
+      <div class="row">
+        <div class="muted small" id="qtype"></div>
+        <div class="muted small" id="qhint"></div>
+      </div>
 
-          <div class="qid" id="qid"></div>
-          <div class="prompt" id="prompt"></div>
-          <div class="input" id="input-area"></div>
+      <div class="qid" id="qid"></div>
+      <div class="prompt" id="prompt"></div>
+      <div class="input" id="input-area"></div>
 
-          <div class="btns">
-            <button class="ghost" id="prevBtn">Zpět</button>
-            <button class="primary" id="nextBtn">Další</button>
-            <button class="ghost" id="finishBtn" style="margin-left:auto; display:none;">Vyhodnotit</button>
-          </div>
+      <div class="btns">
+        <button class="ghost" id="prevBtn">Zpět</button>
+        <button class="primary" id="nextBtn">Další</button>
+        <button class="ghost" id="finishBtn" style="margin-left:auto; display:none;">Vyhodnotit</button>
+      </div>
 
-          <div class="note" style="margin-top:10px">
-            Tip: piš jen výsledek (např. <b>18:40</b>, <b>33</b>, <b>-1/2</b>, <b>52:49</b>).
-          </div>
-        </div>
-
-        <!-- RIGHT: IMAGE -->
-        <div class="imgpanel">
-          <div class="imghead">
-            <div class="imgtitle" id="imgTitle">Zadání (1.jpg)</div>
-            <div class="zoombtns">
-              <button class="ghost" type="button" id="imgReloadBtn">Obnovit</button>
-              <button class="ghost" type="button" id="imgOpenBtn">Zvětšit</button>
-            </div>
-          </div>
-          <div class="imgwrap">
-            <img id="taskImg" class="taskimg" alt="Zadání úlohy" loading="eager">
-          </div>
-          <div class="imgnote" id="imgNote">Pokud je úloha ve spodní části, posuň obrázek níž (scroll).</div>
-        </div>
+      <div class="muted small" style="margin-top:10px">
+        Pozn.: U některých úloh se v oficiálním klíči hodnotí i postup. Tady hodnotíme pouze správný výsledek / volbu.
       </div>
     </div>
 
     <div id="screen-result" style="display:none">
       <div class="row">
-        <div class="pill"><b>Skóre:</b> <span id="score"></span></div>
-        <div class="muted small" id="scoreDetail"></div>
+        <div class="pill"><b>Body:</b> <span id="points"></span></div>
+        <div class="muted small" id="pointsDetail"></div>
       </div>
+
       <div class="hr"></div>
 
       <div class="btns">
@@ -277,10 +251,11 @@
 
       <div id="resultTable"></div>
     </div>
+
   </div>
 </div>
 
-<!-- Modal for full screen image -->
+<!-- Modal -->
 <div class="modal" id="imgModal" aria-hidden="true">
   <div class="modalcard">
     <div class="modalbar">
@@ -299,19 +274,11 @@
 </div>
 
 <script>
-/* =========================
-   CONFIG: obrázky ve stejné složce
-========================= */
-function taskImagePath(taskNo){
-  // očekává 1.jpg ... 16.jpg
-  return `./${taskNo}.jpg`;
-}
+/* ========= obrázky ve stejné složce ========= */
+function taskImagePath(taskNo){ return `./${taskNo}.jpg`; }
 
-/* =========================
-   HELPERS
-========================= */
+/* ========= helpers ========= */
 const $ = sel => document.querySelector(sel);
-
 function norm(s){
   return String(s ?? "")
     .trim()
@@ -329,144 +296,103 @@ function escapeHtml(s){
     .replaceAll("'","&#039;");
 }
 
-/* =========================
-   GEOMETRY HELPERS
-========================= */
+/* ========= geo helpers ========= */
 function vsub(a,b){ return {x:a.x-b.x, y:a.y-b.y}; }
 function vadd(a,b){ return {x:a.x+b.x, y:a.y+b.y}; }
 function vmul(a,k){ return {x:a.x*k, y:a.y*k}; }
 function vdot(a,b){ return a.x*b.x + a.y*b.y; }
 function vlen(a){ return Math.hypot(a.x,a.y); }
-function vnorm(a){
-  const L = vlen(a) || 1;
-  return {x:a.x/L, y:a.y/L};
-}
-function vproj(u, ontoUnit){
-  const t = vdot(u, ontoUnit);
-  return vmul(ontoUnit, t);
-}
-function vperp(u, ontoUnit){
-  const proj = vproj(u, ontoUnit);
-  return vsub(u, proj);
-}
-function reflectVector(u, axisUnit){
-  const up = vproj(u, axisUnit);
-  const uq = vperp(u, axisUnit);
-  return vsub(up, uq);
-}
+function vnorm(a){ const L=vlen(a)||1; return {x:a.x/L,y:a.y/L}; }
+function vproj(u, ontoUnit){ return vmul(ontoUnit, vdot(u,ontoUnit)); }
+function vperp(u, ontoUnit){ return vsub(u, vproj(u,ontoUnit)); }
+function reflectVector(u, axisUnit){ return vsub(vproj(u,axisUnit), vperp(u,axisUnit)); }
 function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
 function intersectLineCircle(P0, d, C, r){
-  const f = vsub(P0, C);
-  const a = vdot(d,d);
-  const b = 2*vdot(f,d);
-  const c = vdot(f,f) - r*r;
-  const disc = b*b - 4*a*c;
+  const f=vsub(P0,C);
+  const a=vdot(d,d), b=2*vdot(f,d), c=vdot(f,f)-r*r;
+  const disc=b*b-4*a*c;
   if(disc < -1e-9) return [];
   if(Math.abs(disc) < 1e-9){
-    const t = -b/(2*a);
+    const t=-b/(2*a);
     return [vadd(P0, vmul(d,t))];
   }
-  const s = Math.sqrt(disc);
-  const t1 = (-b + s)/(2*a);
-  const t2 = (-b - s)/(2*a);
+  const s=Math.sqrt(disc);
+  const t1=(-b+s)/(2*a), t2=(-b-s)/(2*a);
   return [vadd(P0, vmul(d,t1)), vadd(P0, vmul(d,t2))];
 }
 
-/* =========================
-   QUESTIONS
-   - task: číslo úlohy pro obrázek (1..16)
-   - id: zobrazené číslo (1.1, 1.2…)
-========================= */
+/* ========= Questions: odpovědi dle klíče ========= */
 const QUESTIONS = [
-  // Úloha 1 (obrázek 1.jpg)
-  { id:"1.1", task:1, type:"text", prompt:"Úloha 1 – odpověď 1.1", answer:["18:40"] },
-  { id:"1.2", task:1, type:"text", prompt:"Úloha 1 – odpověď 1.2", answer:["33","33min","33minut","33 minut","33min."] },
+  { id:"1.1", task:1, type:"text", prompt:"Úloha 1.1", answer:["18:40"] },
+  { id:"1.2", task:1, type:"text", prompt:"Úloha 1.2", answer:["33minut","33 minut","33min","33 min"] },
 
-  // Úloha 2 (obrázek 2.jpg)
-  { id:"2.1", task:2, type:"text", prompt:"Úloha 2 – odpověď 2.1", answer:["-1/2","−1/2"] },
-  { id:"2.2", task:2, type:"text", prompt:"Úloha 2 – odpověď 2.2", answer:["3/4"] },
+  { id:"2.1", task:2, type:"text", prompt:"Úloha 2.1", answer:["-1/2","−1/2"] },
+  { id:"2.2", task:2, type:"text", prompt:"Úloha 2.2", answer:["3/4"] },
 
-  // Úloha 3 (3.jpg)
   { id:"3.1", task:3, type:"text", prompt:"Úloha 3.1", answer:["120"] },
   { id:"3.2", task:3, type:"text", prompt:"Úloha 3.2", answer:["48"] },
 
-  // Úloha 4 (4.jpg)
-  { id:"4.1", task:4, type:"text", prompt:"Úloha 4.1", answer:["600","600kč","600 Kč"] },
-  { id:"4.2", task:4, type:"text", prompt:"Úloha 4.2", answer:["200","200kč","200 Kč","o200","o 200"] },
-  { id:"4.3", task:4, type:"text", prompt:"Úloha 4.3", answer:["1900","1 900","1900 Kč","1 900 Kč","1900kč"] },
+  { id:"4.1", task:4, type:"text", prompt:"Úloha 4.1", answer:["600","600korun","600kč","600 Kč"] },
+  { id:"4.2", task:4, type:"text", prompt:"Úloha 4.2", answer:["o200","o 200","o200korun","o 200 korun","200"] },
+  { id:"4.3", task:4, type:"text", prompt:"Úloha 4.3", answer:["1900","1 900","1900korun","1900kč","1900 Kč","1 900 Kč"] },
 
-  // Úloha 5 (5.jpg)
-  { id:"5.1", task:5, type:"text", prompt:"Úloha 5.1", answer:["21","21kč","21 Kč"] },
-  { id:"5.2", task:5, type:"text", prompt:"Úloha 5.2", answer:["42","42kč","42 Kč"] },
+  { id:"5.1", task:5, type:"text", prompt:"Úloha 5.1", answer:["21","21korun","21kč","21 Kč"] },
+  { id:"5.2", task:5, type:"text", prompt:"Úloha 5.2", answer:["42","42korun","42kč","42 Kč"] },
 
-  // Úloha 6 (6.jpg)
   { id:"6.1", task:6, type:"text", prompt:"Úloha 6.1", answer:["77"] },
   { id:"6.2", task:6, type:"text", prompt:"Úloha 6.2", answer:["3"] },
-  { id:"6.3", task:6, type:"text", prompt:"Úloha 6.3", answer:["7","o7","o 7","o 7 kartiček","o7kartiček"] },
+  { id:"6.3", task:6, type:"text", prompt:"Úloha 6.3", answer:["o7","o 7","o7kartiček","o 7 kartiček","7"] },
 
-  // Úloha 7 (7.jpg)
   { id:"7.1", task:7, type:"text", prompt:"Úloha 7.1", answer:["5","5cm","5 cm"] },
   { id:"7.2", task:7, type:"text", prompt:"Úloha 7.2", answer:["110","110cm2","110 cm2","110cm²","110 cm²"] },
 
-  // Úloha 8 (8.jpg + geo8)
-  { id:"8", task:8, type:"geo8", prompt:"Úloha 8 – klikni na bod A v interaktivním nákresu", answer:["(geo)"] },
+  { id:"8", task:8, type:"geo8", prompt:"Úloha 8 – klikni na bod A", answer:["(geo)"] },
+  { id:"9", task:9, type:"geo9", prompt:"Úloha 9 – klikni na obě polohy H", answer:["(geo)"] },
 
-  // Úloha 9 (9.jpg + geo9)
-  { id:"9", task:9, type:"geo9", prompt:"Úloha 9 – klikni na obě možné polohy bodu H", answer:["(geo)"] },
+  { id:"10.1", task:10, type:"mc2", prompt:"Úloha 10.1", choices:["A","N"], answer:["N"] },
+  { id:"10.2", task:10, type:"mc2", prompt:"Úloha 10.2", choices:["A","N"], answer:["A"] },
+  { id:"10.3", task:10, type:"mc2", prompt:"Úloha 10.3", choices:["A","N"], answer:["N"] },
 
-  // Úloha 10 (10.jpg)
-  { id:"10.1", task:10, type:"mc2", prompt:"Úloha 10.1 – zvol A nebo N", choices:["A","N"], answer:["N"] },
-  { id:"10.2", task:10, type:"mc2", prompt:"Úloha 10.2 – zvol A nebo N", choices:["A","N"], answer:["A"] },
-  { id:"10.3", task:10, type:"mc2", prompt:"Úloha 10.3 – zvol A nebo N", choices:["A","N"], answer:["N"] },
+  { id:"11", task:11, type:"mc5", prompt:"Úloha 11", choices:["A","B","C","D","E"], answer:["B"] },
+  { id:"12", task:12, type:"mc5", prompt:"Úloha 12", choices:["A","B","C","D","E"], answer:["C"] },
+  { id:"13", task:13, type:"mc5", prompt:"Úloha 13", choices:["A","B","C","D","E"], answer:["A"] },
+  { id:"14", task:14, type:"mc5", prompt:"Úloha 14", choices:["A","B","C","D","E"], answer:["D"] },
 
-  // Úloha 11–13 (11.jpg? Ne — podle tvého rozpisu jsou na jedné straně, ale ty chceš 1.jpg…16.jpg,
-  // takže zde použijeme 11.jpg pro úlohu 11, 12.jpg pro 12, 13.jpg pro 13, nebo můžeš dát společný obrázek.
-  // Já to nastavím 11->11.jpg, 12->12.jpg, 13->13.jpg. Pokud máš naopak společný obrázek, řekni a upravím mapu.
-  { id:"11", task:11, type:"mc5", prompt:"Úloha 11 – vyber A–E", choices:["A","B","C","D","E"], answer:["B"] },
-  { id:"12", task:12, type:"mc5", prompt:"Úloha 12 – vyber A–E", choices:["A","B","C","D","E"], answer:["C"] },
-  { id:"13", task:13, type:"mc5", prompt:"Úloha 13 – vyber A–E", choices:["A","B","C","D","E"], answer:["A"] },
+  { id:"15.1", task:15, type:"mc6", prompt:"Úloha 15.1", choices:["A","B","C","D","E","F"], answer:["A"] },
+  { id:"15.2", task:15, type:"mc6", prompt:"Úloha 15.2", choices:["A","B","C","D","E","F"], answer:["E"] },
+  { id:"15.3", task:15, type:"mc6", prompt:"Úloha 15.3", choices:["A","B","C","D","E","F"], answer:["F"] },
 
-  // Úloha 14 (14.jpg)
-  { id:"14", task:14, type:"mc5", prompt:"Úloha 14 – vyber A–E", choices:["A","B","C","D","E"], answer:["D"] },
-
-  // Úloha 15 (15.jpg)
-  { id:"15.1", task:15, type:"mc6", prompt:"Úloha 15.1 – vyber A–F", choices:["A","B","C","D","E","F"], answer:["A"] },
-  { id:"15.2", task:15, type:"mc6", prompt:"Úloha 15.2 – vyber A–F", choices:["A","B","C","D","E","F"], answer:["E"] },
-  { id:"15.3", task:15, type:"mc6", prompt:"Úloha 15.3 – vyber A–F", choices:["A","B","C","D","E","F"], answer:["F"] },
-
-  // Úloha 16 (16.jpg)
   { id:"16.1", task:16, type:"text", prompt:"Úloha 16.1", answer:["38","38."] },
-  { id:"16.2", task:16, type:"text", prompt:"Úloha 16.2", answer:["23"] },
-  { id:"16.3", task:16, type:"text", prompt:"Úloha 16.3 – zapiš poměr, např. 52:49", answer:["52:49","52 : 49","52∶49"] }
+  { id:"16.2", task:16, type:"text", prompt:"Úloha 16.2", answer:["23","23bílýchčtyřúhelníků","23 bílých čtyřúhelníků"] },
+  { id:"16.3", task:16, type:"text", prompt:"Úloha 16.3 (poměr)", answer:["52:49","52 : 49","52∶49"] }
 ];
 
-/* =========================
-   STATE
-========================= */
+/* ========= Bodování (skupiny dle klíče) =========
+   Celkem max 50 bodů.
+   - skupina3: (3.1, 3.2) -> 3/2/0
+   - skupina5: (5.1, 5.2) -> 3/2/0
+   - skupina10: (10.1..10.3) -> 4/2/0
+   - skupina15: (15.1..15.3) -> 6/4/2/0
+   Ostatní jsou "samostatně".
+*/
+const MAX_TOTAL_POINTS = 50;
+
 let idx = 0;
-const user = {}; // text/mc: user[id]=string; geo: user["8"]={...}, user["9"]={...}
+const user = {};
 let finished = false;
 $("#qtotal").textContent = QUESTIONS.length;
 
-/* =========================
-   ANSWERED?
-========================= */
+/* ========= answered? ========= */
 function isAnswered(q){
   if(q.type==="text" || q.type==="mc2" || q.type==="mc5" || q.type==="mc6"){
     return !!(String(user[q.id] ?? "").trim());
   }
-  if(q.type==="geo8"){
-    return user["8"]?.ax != null;
-  }
-  if(q.type==="geo9"){
-    return (user["9"]?.clicks?.length ?? 0) >= 2;
-  }
+  if(q.type==="geo8"){ return user["8"]?.ax != null; }
+  if(q.type==="geo9"){ return (user["9"]?.clicks?.length ?? 0) >= 2; }
   return false;
 }
 
-/* =========================
-   NAV
-========================= */
+/* ========= nav ========= */
 function renderNav(){
   const nav = $("#navgrid");
   nav.innerHTML = "";
@@ -474,91 +400,54 @@ function renderNav(){
     const b = document.createElement("button");
     b.className = "navbtn";
     b.textContent = q.id;
-    if(i === idx) b.classList.add("active");
+    if(i===idx) b.classList.add("active");
     if(isAnswered(q)) b.classList.add("answered");
-    b.title = `Úloha ${q.id}`;
-    b.addEventListener("click", () => { if(!finished){ idx = i; render(); } });
+    b.addEventListener("click", () => { if(!finished){ idx=i; render(); } });
     nav.appendChild(b);
   });
 }
 
-/* =========================
-   IMAGE PANEL
-========================= */
+/* ========= image panel ========= */
 function setImageForQuestion(q){
   const src = taskImagePath(q.task);
   $("#imgTitle").textContent = `Zadání (${q.task}.jpg)`;
   const img = $("#taskImg");
-
-  img.onerror = () => {
-    img.style.opacity = "1";
-    img.alt = `Chybí soubor ${q.task}.jpg ve stejné složce jako index.html`;
-  };
-
-  // cache-buster při "Obnovit"
   img.dataset.base = src;
   img.src = src;
+  img.onerror = () => { img.alt = `Chybí ${q.task}.jpg ve stejné složce.`; };
 
   $("#imgOpenBtn").onclick = () => openModal(src, `Zadání – úloha ${q.task}`);
-  $("#imgReloadBtn").onclick = () => {
-    img.src = `${src}?v=${Date.now()}`;
-  };
+  $("#imgReloadBtn").onclick = () => { img.src = `${src}?v=${Date.now()}`; };
 
-  // hint text
-  $("#imgNote").textContent =
-    (q.task===2 || q.task===4 || q.task===6) ? "Tahle úloha byla v papíru ve spodní části stránky – tady jen posuň obrázek níž (scroll)." :
-    "Pokud něco není vidět, posuň obrázek (scroll) nebo klikni na Zvětšit.";
+  $("#imgNote").textContent = (q.task===2 || q.task===4 || q.task===6)
+    ? "Tahle úloha byla v originálu ve spodní části stránky – tady jen scrolluj níž."
+    : "Když něco není vidět, scrolluj nebo klikni na Zvětšit.";
 }
 
-/* =========================
-   MODAL ZOOM
-========================= */
+/* ========= modal zoom ========= */
 let zoom = 1;
-
 function openModal(src, title){
   $("#modalTitle").textContent = title;
-  const m = $("#imgModal");
-  const mi = $("#modalImg");
   zoom = 1;
-  mi.style.transform = `scale(${zoom})`;
-  mi.src = src;
-  m.classList.add("open");
-  m.setAttribute("aria-hidden","false");
-
-  // scroll top
+  $("#modalImg").style.transform = `scale(${zoom})`;
+  $("#modalImg").src = src;
+  $("#imgModal").classList.add("open");
+  $("#imgModal").setAttribute("aria-hidden","false");
   $("#modalContent").scrollTop = 0;
   $("#modalContent").scrollLeft = 0;
 }
-
 function closeModal(){
-  const m = $("#imgModal");
-  m.classList.remove("open");
-  m.setAttribute("aria-hidden","true");
+  $("#imgModal").classList.remove("open");
+  $("#imgModal").setAttribute("aria-hidden","true");
 }
-
 $("#modalClose").addEventListener("click", closeModal);
-$("#imgModal").addEventListener("click", (e)=>{
-  if(e.target.id === "imgModal") closeModal();
-});
-document.addEventListener("keydown",(e)=>{
-  if(e.key === "Escape") closeModal();
-});
-$("#zoomIn").addEventListener("click", ()=>{
-  zoom = Math.min(3.5, zoom + 0.25);
-  $("#modalImg").style.transform = `scale(${zoom})`;
-});
-$("#zoomOut").addEventListener("click", ()=>{
-  zoom = Math.max(1, zoom - 0.25);
-  $("#modalImg").style.transform = `scale(${zoom})`;
-});
-$("#zoomReset").addEventListener("click", ()=>{
-  zoom = 1;
-  $("#modalImg").style.transform = `scale(${zoom})`;
-});
+$("#imgModal").addEventListener("click", (e)=>{ if(e.target.id==="imgModal") closeModal(); });
+document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeModal(); });
+$("#zoomIn").addEventListener("click", ()=>{ zoom=Math.min(3.5, zoom+0.25); $("#modalImg").style.transform=`scale(${zoom})`; });
+$("#zoomOut").addEventListener("click", ()=>{ zoom=Math.max(1, zoom-0.25); $("#modalImg").style.transform=`scale(${zoom})`; });
+$("#zoomReset").addEventListener("click", ()=>{ zoom=1; $("#modalImg").style.transform=`scale(${zoom})`; });
 
-/* =========================
-   GEO RENDERERS
-========================= */
+/* ========= geo renderers ========= */
 function renderGeo8(container){
   const B = {x:140, y:80};
   const C = {x:160, y:220};
@@ -573,37 +462,34 @@ function renderGeo8(container){
     .map(p => ({p, t: vdot(vsub(p,B), d2)}))
     .filter(x => x.t > 1e-6)
     .sort((a,b)=>a.t-b.t);
-
   const A = inter.length ? inter[0].p : {x:0,y:0};
 
   const state = user["8"] || {ax:null, ay:null, showHelp:false, _tol:12, _correctA:A};
   state._correctA = A;
   user["8"] = state;
 
-  const far = 900;
-  const pBC2 = vadd(B, vmul(dBC, far));
-  const pBO2 = vadd(B, vmul(axis, far));
-  const pD2  = vadd(B, vmul(d2, far));
+  const far=900;
+  const pBC2=vadd(B, vmul(dBC, far));
+  const pBO2=vadd(B, vmul(axis, far));
+  const pD2=vadd(B, vmul(d2, far));
 
-  function drawPoint(label, P){
+  function drawPoint(label,P){
     return `
       <g>
         <line x1="${P.x-6}" y1="${P.y-6}" x2="${P.x+6}" y2="${P.y+6}" stroke="rgba(255,255,255,.85)" stroke-width="2"/>
         <line x1="${P.x-6}" y1="${P.y+6}" x2="${P.x+6}" y2="${P.y-6}" stroke="rgba(255,255,255,.85)" stroke-width="2"/>
         <text x="${P.x+10}" y="${P.y-10}" font-size="16" fill="rgba(255,255,255,.9)">${label}</text>
-      </g>
-    `;
+      </g>`;
   }
 
   container.innerHTML = `
     <div class="geohead">
       <div style="flex:1">
-        <b>Interaktivní nákres</b><br>
-        <span class="muted small">Klikni na bod <b>A</b>. (Pomocné čáry lze zapnout.)</span>
+        <b>Geometrie</b><br>
+        <span class="muted small">Klikni na bod <b>A</b>.</span>
       </div>
       <label class="muted small" style="display:flex;gap:10px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="geo8_help" ${state.showHelp ? "checked":""}>
-        Pomocné čáry
+        <input type="checkbox" id="geo8_help" ${state.showHelp ? "checked":""}> Pomocné čáry
       </label>
       <button class="ghost" type="button" id="geo8_clear">Smazat klik</button>
     </div>
@@ -625,23 +511,20 @@ function renderGeo8(container){
           <line x1="${B.x}" y1="${B.y}" x2="${pD2.x}" y2="${pD2.y}" stroke="rgba(34,197,94,.55)" stroke-width="3" />
         </g>
 
-        ${drawPoint("B", B)}
-        ${drawPoint("C", C)}
-        ${drawPoint("O", O)}
-
+        ${drawPoint("B",B)} ${drawPoint("C",C)} ${drawPoint("O",O)}
         <circle id="geo8_marker" r="7" fill="rgba(59,130,246,.95)" stroke="white" stroke-width="2"
-                ${state.ax==null ? 'display="none"' : ''} cx="${state.ax ?? 0}" cy="${state.ay ?? 0}"></circle>
+          ${state.ax==null ? 'display="none"' : ''} cx="${state.ax ?? 0}" cy="${state.ay ?? 0}"></circle>
       </svg>
     </div>
   `;
 
-  const svg = container.querySelector("#geo8_svg");
-  svg.addEventListener("click", (evt)=>{
-    const pt = svg.createSVGPoint();
-    pt.x = evt.clientX; pt.y = evt.clientY;
-    const sp = pt.matrixTransform(svg.getScreenCTM().inverse());
-    state.ax = sp.x; state.ay = sp.y;
-    const mk = container.querySelector("#geo8_marker");
+  const svg=container.querySelector("#geo8_svg");
+  svg.addEventListener("click",(evt)=>{
+    const pt=svg.createSVGPoint();
+    pt.x=evt.clientX; pt.y=evt.clientY;
+    const sp=pt.matrixTransform(svg.getScreenCTM().inverse());
+    state.ax=sp.x; state.ay=sp.y;
+    const mk=container.querySelector("#geo8_marker");
     mk.setAttribute("display","block");
     mk.setAttribute("cx", state.ax);
     mk.setAttribute("cy", state.ay);
@@ -649,51 +532,42 @@ function renderGeo8(container){
   });
 
   container.querySelector("#geo8_help").addEventListener("change",(e)=>{
-    state.showHelp = e.target.checked;
+    state.showHelp=e.target.checked;
     container.querySelector("#geo8_helpers").style.display = state.showHelp ? "block":"none";
   });
-
   container.querySelector("#geo8_clear").addEventListener("click", ()=>{
-    state.ax = null; state.ay = null;
-    render();
+    state.ax=null; state.ay=null; render();
   });
 }
 
 function renderGeo9(container){
-  const E = {x:170, y:260};
-  const F = {x:390, y:200};
-  const G = {x:380, y:90};
-
+  const E={x:170,y:260}, F={x:390,y:200}, G={x:380,y:90};
   const state = user["9"] || {clicks:[], showHelp:false, _tol:12};
-  user["9"] = state;
+  user["9"]=state;
 
-  const dEF = vnorm(vsub(F,E));
-  const r = dist(F,G);
-  const Hs = intersectLineCircle(G, dEF, E, r);
-  state._correctHs = Hs;
+  const dEF=vnorm(vsub(F,E));
+  const r=dist(F,G);
+  const Hs=intersectLineCircle(G, dEF, E, r);
+  state._correctHs=Hs;
 
-  function drawX(label, P){
+  function drawX(label,P){
     return `
       <g>
         <line x1="${P.x-6}" y1="${P.y-6}" x2="${P.x+6}" y2="${P.y+6}" stroke="rgba(255,255,255,.85)" stroke-width="2"/>
         <line x1="${P.x-6}" y1="${P.y+6}" x2="${P.x+6}" y2="${P.y-6}" stroke="rgba(255,255,255,.85)" stroke-width="2"/>
         <text x="${P.x+10}" y="${P.y-10}" font-size="16" fill="rgba(255,255,255,.9)">${label}</text>
-      </g>
-    `;
+      </g>`;
   }
-
-  const p1 = vadd(G, vmul(dEF, -900));
-  const p2 = vadd(G, vmul(dEF,  900));
+  const p1=vadd(G, vmul(dEF,-900)), p2=vadd(G, vmul(dEF,900));
 
   container.innerHTML = `
     <div class="geohead">
       <div style="flex:1">
-        <b>Interaktivní nákres</b><br>
-        <span class="muted small">Klikni na <b>obě</b> možné polohy bodu <b>H</b>. (Max. 2 kliky; třetí klik začne znovu.)</span>
+        <b>Geometrie</b><br>
+        <span class="muted small">Klikni na <b>obě</b> polohy bodu H (max 2 kliky).</span>
       </div>
       <label class="muted small" style="display:flex;gap:10px;align-items:center;cursor:pointer">
-        <input type="checkbox" id="geo9_help" ${state.showHelp ? "checked":""}>
-        Pomocné čáry
+        <input type="checkbox" id="geo9_help" ${state.showHelp ? "checked":""}> Pomocné čáry
       </label>
       <button class="ghost" type="button" id="geo9_clear">Smazat kliky</button>
     </div>
@@ -712,92 +586,180 @@ function renderGeo9(container){
           <line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="rgba(34,197,94,.55)" stroke-width="3"/>
         </g>
 
-        ${drawX("E",E)}
-        ${drawX("F",F)}
-        ${drawX("G",G)}
-
+        ${drawX("E",E)} ${drawX("F",F)} ${drawX("G",G)}
         <g id="geo9_marks"></g>
       </svg>
     </div>
   `;
 
-  const svg = container.querySelector("#geo9_svg");
-  const marks = container.querySelector("#geo9_marks");
+  const svg=container.querySelector("#geo9_svg");
+  const marks=container.querySelector("#geo9_marks");
 
-  function redrawMarks(){
-    marks.innerHTML = state.clicks.map((p, i) => `
+  function redraw(){
+    marks.innerHTML = state.clicks.map((p,i)=>`
       <g>
         <circle cx="${p.x}" cy="${p.y}" r="7" fill="rgba(59,130,246,.95)" stroke="white" stroke-width="2"></circle>
         <text x="${p.x+10}" y="${p.y+5}" font-size="14" fill="rgba(255,255,255,.9)">H${i+1}</text>
-      </g>
-    `).join("");
+      </g>`).join("");
   }
+  redraw();
 
   svg.addEventListener("click",(evt)=>{
-    const pt = svg.createSVGPoint();
-    pt.x = evt.clientX; pt.y = evt.clientY;
-    const sp = pt.matrixTransform(svg.getScreenCTM().inverse());
-
-    if(state.clicks.length < 2) state.clicks.push({x:sp.x, y:sp.y});
-    else state.clicks = [{x:sp.x, y:sp.y}];
-
-    redrawMarks();
-    renderNav();
+    const pt=svg.createSVGPoint();
+    pt.x=evt.clientX; pt.y=evt.clientY;
+    const sp=pt.matrixTransform(svg.getScreenCTM().inverse());
+    if(state.clicks.length < 2) state.clicks.push({x:sp.x,y:sp.y});
+    else state.clicks=[{x:sp.x,y:sp.y}];
+    redraw(); renderNav();
   });
 
   container.querySelector("#geo9_clear").addEventListener("click", ()=>{
-    state.clicks = [];
-    redrawMarks();
-    renderNav();
+    state.clicks=[]; redraw(); renderNav();
   });
-
   container.querySelector("#geo9_help").addEventListener("change",(e)=>{
-    state.showHelp = e.target.checked;
+    state.showHelp=e.target.checked;
     container.querySelector("#geo9_helpers").style.display = state.showHelp ? "block":"none";
   });
-
-  redrawMarks();
 }
 
-/* =========================
-   CHECKING
-========================= */
+/* ========= correctness ========= */
 function isCorrect(q){
-  if(q.type === "text" || q.type === "mc2" || q.type === "mc5" || q.type === "mc6"){
+  if(q.type==="text" || q.type==="mc2" || q.type==="mc5" || q.type==="mc6"){
     const v = norm(user[q.id] ?? "");
+    // speciál 16.3: 1 bod za převrácený poměr
+    if(q.id==="16.3"){
+      if(["52:49","52 : 49","52∶49"].some(a => norm(a)===v)) return true; // správně (2b vyřešíme ve scoringu)
+      return false;
+    }
     return q.answer.some(a => norm(a) === v);
   }
-
-  if(q.type === "geo8"){
-    const st = user["8"];
+  if(q.type==="geo8"){
+    const st=user["8"];
     if(!st || st.ax==null) return false;
     return dist({x:st.ax,y:st.ay}, st._correctA) <= (st._tol || 12);
   }
-
-  if(q.type === "geo9"){
-    const st = user["9"];
+  if(q.type==="geo9"){
+    const st=user["9"];
     if(!st || (st.clicks?.length ?? 0) < 2) return false;
-    const Hs = st._correctHs || [];
+    const Hs=st._correctHs || [];
     if(Hs.length < 2) return false;
-    const tol = st._tol || 12;
-    const c1 = st.clicks[0], c2 = st.clicks[1];
-    const H1 = Hs[0], H2 = Hs[1];
-    const okA = (dist(c1,H1)<=tol && dist(c2,H2)<=tol);
-    const okB = (dist(c1,H2)<=tol && dist(c2,H1)<=tol);
-    return okA || okB;
+    const tol=st._tol || 12;
+    const c1=st.clicks[0], c2=st.clicks[1];
+    const H1=Hs[0], H2=Hs[1];
+    return (dist(c1,H1)<=tol && dist(c2,H2)<=tol) || (dist(c1,H2)<=tol && dist(c2,H1)<=tol);
   }
-
   return false;
 }
 
-/* =========================
-   RENDER
-========================= */
+/* ========= scoring (body) ========= */
+function scoreAll(){
+  // per-item correctness map
+  const ok = {};
+  QUESTIONS.forEach(q => ok[q.id] = isCorrect(q));
+
+  // helper to fetch user answer string
+  const ans = (id) => String(user[id] ?? "").trim();
+
+  // Start with 0 for each row
+  const rowPoints = {};
+  const rowMax = {};
+  QUESTIONS.forEach(q => { rowPoints[q.id]=0; rowMax[q.id]=0; });
+
+  // 1
+  rowMax["1.1"]=1; rowPoints["1.1"]= ok["1.1"] ? 1 : 0;
+  rowMax["1.2"]=1; rowPoints["1.2"]= ok["1.2"] ? 1 : 0;
+
+  // 2
+  rowMax["2.1"]=2; rowPoints["2.1"]= ok["2.1"] ? 2 : 0;
+  rowMax["2.2"]=2; rowPoints["2.2"]= ok["2.2"] ? 2 : 0;
+
+  // 3 group max 3 (both=3, one=2, none=0) -> assign points to group rows evenly for display
+  const g3 = (ok["3.1"]?1:0) + (ok["3.2"]?1:0);
+  const g3pts = (g3===2) ? 3 : (g3===1 ? 2 : 0);
+  rowMax["3.1"]=1; rowMax["3.2"]=2; // jen pro "max" v tabulce (součet=3)
+  if(g3pts===3){ rowPoints["3.1"]=1; rowPoints["3.2"]=2; }
+  else if(g3pts===2){
+    // když je správně jen jedna, dáme 2 body tomu, co je správně
+    if(ok["3.2"]){ rowPoints["3.2"]=2; rowPoints["3.1"]=0; }
+    else { rowPoints["3.1"]=1; rowPoints["3.2"]=1; } // fallback (kdyby byla správná jen 3.1)
+  } else { rowPoints["3.1"]=0; rowPoints["3.2"]=0; }
+
+  // 4 (1+1+1)
+  ["4.1","4.2","4.3"].forEach(id=>{ rowMax[id]=1; rowPoints[id]= ok[id]?1:0; });
+
+  // 5 group max 3 (both=3, one=2, none=0)
+  const g5 = (ok["5.1"]?1:0) + (ok["5.2"]?1:0);
+  const g5pts = (g5===2) ? 3 : (g5===1 ? 2 : 0);
+  rowMax["5.1"]=1; rowMax["5.2"]=2;
+  if(g5pts===3){ rowPoints["5.1"]=1; rowPoints["5.2"]=2; }
+  else if(g5pts===2){
+    if(ok["5.2"]){ rowPoints["5.2"]=2; rowPoints["5.1"]=0; }
+    else { rowPoints["5.1"]=1; rowPoints["5.2"]=1; }
+  }
+
+  // 6 (1+1+1)
+  ["6.1","6.2","6.3"].forEach(id=>{ rowMax[id]=1; rowPoints[id]= ok[id]?1:0; });
+
+  // 7 (2+2)
+  rowMax["7.1"]=2; rowPoints["7.1"]= ok["7.1"]?2:0;
+  rowMax["7.2"]=2; rowPoints["7.2"]= ok["7.2"]?2:0;
+
+  // 8,9 (3 each)
+  rowMax["8"]=3; rowPoints["8"]= ok["8"]?3:0;
+  rowMax["9"]=3; rowPoints["9"]= ok["9"]?3:0;
+
+  // 10 group max 4: 3 correct=4, 2 correct=2, else 0
+  const g10 = (ok["10.1"]?1:0)+(ok["10.2"]?1:0)+(ok["10.3"]?1:0);
+  const g10pts = (g10===3)?4:(g10===2?2:0);
+  rowMax["10.1"]=1; rowMax["10.2"]=2; rowMax["10.3"]=1; // jen pro součet 4
+  if(g10pts===4){ rowPoints["10.1"]=1; rowPoints["10.2"]=2; rowPoints["10.3"]=1; }
+  else if(g10pts===2){
+    // dáme 1 bod první správné a 1 bod druhé správné
+    const ids=["10.1","10.2","10.3"].filter(id=>ok[id]);
+    if(ids[0]) rowPoints[ids[0]] = 1;
+    if(ids[1]) rowPoints[ids[1]] += 1;
+  }
+
+  // 11-14 (2 each)
+  ["11","12","13","14"].forEach(id=>{ rowMax[id]=2; rowPoints[id]= ok[id]?2:0; });
+
+  // 15 group max 6: 3=6, 2=4, 1=2, 0=0
+  const g15=(ok["15.1"]?1:0)+(ok["15.2"]?1:0)+(ok["15.3"]?1:0);
+  const g15pts=(g15===3)?6:(g15===2?4:(g15===1?2:0));
+  rowMax["15.1"]=2; rowMax["15.2"]=2; rowMax["15.3"]=2;
+  if(g15pts===6){ rowPoints["15.1"]=2; rowPoints["15.2"]=2; rowPoints["15.3"]=2; }
+  else if(g15pts===4){
+    const ids=["15.1","15.2","15.3"].filter(id=>ok[id]);
+    if(ids[0]) rowPoints[ids[0]] = 2;
+    if(ids[1]) rowPoints[ids[1]] = 2;
+  } else if(g15pts===2){
+    const id=["15.1","15.2","15.3"].find(id=>ok[id]);
+    if(id) rowPoints[id]=2;
+  }
+
+  // 16.1 (1), 16.2 (1), 16.3 (2; 1 za 49:52)
+  rowMax["16.1"]=1; rowPoints["16.1"]= ok["16.1"]?1:0;
+  rowMax["16.2"]=1; rowPoints["16.2"]= ok["16.2"]?1:0;
+
+  rowMax["16.3"]=2;
+  const v16 = norm(ans("16.3"));
+  const ok16_2 = ["52:49","52 : 49","52∶49"].some(a => norm(a)===v16);
+  const ok16_1 = ["49:52","49 : 52","49∶52"].some(a => norm(a)===v16);
+  rowPoints["16.3"] = ok16_2 ? 2 : (ok16_1 ? 1 : 0);
+
+  // total
+  let total = 0;
+  Object.values(rowPoints).forEach(p => total += p);
+
+  return { rowPoints, rowMax, total, max: MAX_TOTAL_POINTS, ok };
+}
+
+/* ========= render ========= */
 function render(){
   if(finished) return;
 
   const q = QUESTIONS[idx];
-  $("#qno").textContent = (idx+1);
+  $("#qno").textContent = idx+1;
   $("#qid").textContent = `Úloha ${q.id}`;
   $("#prompt").textContent = q.prompt;
 
@@ -808,57 +770,74 @@ function render(){
     q.type==="mc6" ? "výběr A–F" :
     (q.type==="geo8" || q.type==="geo9") ? "geometrie (klikáním)" : "";
 
-  $("#qhint").textContent =
-    (q.task===2 || q.task===4 || q.task===6) ? "Pozor: v originálu to bylo ve spodní části – tady jen scrolluj obrázek." : "";
+  $("#qhint").textContent = (q.task===2 || q.task===4 || q.task===6)
+    ? "Pozor: v originálu to bylo dole – scrolluj obrázek."
+    : "";
 
   setImageForQuestion(q);
 
   const area = $("#input-area");
   area.innerHTML = "";
 
-  if(q.type === "text"){
-    const inp = document.createElement("input");
-    inp.type = "text";
-    inp.placeholder = "Napiš odpověď…";
-    inp.value = user[q.id] ?? "";
-    inp.addEventListener("input", e => { user[q.id] = e.target.value; renderNav(); });
+  if(q.type==="text"){
+    const inp=document.createElement("input");
+    inp.type="text";
+    inp.placeholder="Napiš odpověď…";
+    inp.value=user[q.id] ?? "";
+    inp.addEventListener("input",(e)=>{ user[q.id]=e.target.value; renderNav(); });
     area.appendChild(inp);
   }
 
-  if(q.type === "mc2" || q.type === "mc5" || q.type === "mc6"){
-    const wrap = document.createElement("div");
-    wrap.className = "choices";
-    const cur = user[q.id] ?? "";
-    q.choices.forEach(ch => {
-      const b = document.createElement("div");
-      b.className = "choice" + (cur===ch ? " sel":"");
-      b.textContent = ch;
-      b.addEventListener("click", () => { user[q.id]=ch; render(); });
+  if(q.type==="mc2" || q.type==="mc5" || q.type==="mc6"){
+    const wrap=document.createElement("div");
+    wrap.className="choices";
+    const cur=user[q.id] ?? "";
+    q.choices.forEach(ch=>{
+      const b=document.createElement("div");
+      b.className="choice"+(cur===ch?" sel":"");
+      b.textContent=ch;
+      b.addEventListener("click",()=>{ user[q.id]=ch; render(); });
       wrap.appendChild(b);
     });
     area.appendChild(wrap);
   }
 
-  if(q.type === "geo8") renderGeo8(area);
-  if(q.type === "geo9") renderGeo9(area);
+  if(q.type==="geo8") renderGeo8(area);
+  if(q.type==="geo9") renderGeo9(area);
 
-  $("#prevBtn").disabled = (idx===0);
-  $("#nextBtn").disabled = (idx===QUESTIONS.length-1);
+  $("#prevBtn").disabled = idx===0;
+  $("#nextBtn").disabled = idx===QUESTIONS.length-1;
   $("#finishBtn").style.display = (idx===QUESTIONS.length-1) ? "inline-block" : "none";
 
   renderNav();
 }
 
-/* =========================
-   RESULTS + COPY + MAILTO
-========================= */
-function buildResults(){
-  let correct = 0;
-  const rows = QUESTIONS.map(q => {
-    const ok = isCorrect(q);
-    if(ok) correct++;
+/* ========= results ========= */
+function resultsText(pack){
+  const lines=[];
+  const now=new Date();
+  lines.push(`M7A – výsledky (trenažér)`);
+  lines.push(`Datum: ${now.toLocaleString("cs-CZ")}`);
+  lines.push(`Body: ${pack.total} / ${pack.max}`);
+  lines.push("");
+  pack.rows.forEach(r=>{
+    lines.push(`- ${r.id}: ${r.ok ? "OK" : "X"} | body ${r.pts}/${r.max} | odpověď: ${r.your}`);
+  });
+  return lines.join("\n");
+}
 
-    let your = "—";
+function showResults(){
+  const scored = scoreAll();
+  finished=true;
+
+  $("#screen-quiz").style.display="none";
+  $("#screen-result").style.display="block";
+
+  $("#points").textContent = `${scored.total} / ${scored.max}`;
+  $("#pointsDetail").textContent = `Získáno ${scored.total} bodů z ${scored.max}.`;
+
+  const rows = QUESTIONS.map(q=>{
+    let your="—";
     if(q.type==="text" || q.type==="mc2" || q.type==="mc5" || q.type==="mc6"){
       your = (user[q.id] ?? "") || "—";
     } else if(q.type==="geo8"){
@@ -866,80 +845,52 @@ function buildResults(){
     } else if(q.type==="geo9"){
       your = (user["9"]?.clicks?.length ?? 0) >= 2 ? "2 kliky" : "—";
     }
-
-    let corr = q.answer?.[0] ?? "";
-    if(q.type==="geo8") corr = "klik na bod A";
-    if(q.type==="geo9") corr = "2 polohy H";
-
-    return { id:q.id, your, corr, ok };
+    return {
+      id:q.id,
+      your,
+      ok: scored.ok[q.id],
+      pts: scored.rowPoints[q.id],
+      max: scored.rowMax[q.id]
+    };
   });
 
-  return { correct, total: QUESTIONS.length, rows };
-}
-
-function resultsText(pack){
-  const lines = [];
-  const now = new Date();
-  lines.push(`M7A – výsledky (trenažér s obrázky + geo klikání)`);
-  lines.push(`Datum: ${now.toLocaleString('cs-CZ')}`);
-  lines.push(`Skóre: ${pack.correct} / ${pack.total}`);
-  lines.push(``);
-  lines.push(`Detail:`);
-  pack.rows.forEach(r=>{
-    lines.push(`- ${r.id}: ${r.ok ? "OK" : "X"} | odpověď: ${r.your} | správně: ${r.corr}`);
-  });
-  return lines.join("\n");
-}
-
-function showResults(){
-  const pack = buildResults();
-  finished = true;
-
-  $("#screen-quiz").style.display = "none";
-  $("#screen-result").style.display = "block";
-
-  $("#score").textContent = `${pack.correct} / ${pack.total}`;
-  $("#scoreDetail").textContent = `Správně: ${pack.correct}, špatně/bez odpovědi: ${pack.total-pack.correct}`;
-
-  const html = `
+  $("#resultTable").innerHTML = `
     <table>
       <thead>
-        <tr><th>Úloha</th><th>Odpověď</th><th>Správně</th><th>Stav</th></tr>
+        <tr><th>Úloha</th><th>Odpověď</th><th>Body</th><th>Stav</th></tr>
       </thead>
       <tbody>
-        ${pack.rows.map(r => `
+        ${rows.map(r=>`
           <tr>
             <td><b>${r.id}</b></td>
             <td>${escapeHtml(r.your)}</td>
-            <td>${escapeHtml(r.corr)}</td>
+            <td><b>${r.pts}</b> / ${r.max}</td>
             <td>${r.ok ? '<span class="ok">OK</span>' : '<span class="bad">X</span>'}</td>
           </tr>
         `).join("")}
       </tbody>
     </table>
   `;
-  $("#resultTable").innerHTML = html;
 
+  const pack = { total: scored.total, max: scored.max, rows };
   const body = resultsText(pack);
-  const subject = `M7A výsledky – ${pack.correct}/${pack.total}`;
+  const subject = `M7A – body ${scored.total}/${scored.max}`;
   $("#mailtoLink").href = `mailto:jan.bernard@gyby.cz?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-  $("#copyBtn").onclick = async () => {
+  $("#copyBtn").onclick = async ()=>{
     try{
       await navigator.clipboard.writeText(body);
-      $("#copyBtn").textContent = "Zkopírováno ✅";
-      setTimeout(()=> $("#copyBtn").textContent = "Zkopírovat výsledky", 1400);
-    } catch(e){
-      window.prompt("Nepovedlo se zkopírovat automaticky. Zkopíruj ručně:", body);
+      $("#copyBtn").textContent="Zkopírováno ✅";
+      setTimeout(()=>$("#copyBtn").textContent="Zkopírovat výsledky",1400);
+    }catch(e){
+      window.prompt("Zkopíruj ručně:", body);
     }
   };
 }
 
-/* =========================
-   BUTTONS
-========================= */
-$("#prevBtn").addEventListener("click", ()=>{ if(idx>0){ idx--; render(); } });
-$("#nextBtn").addEventListener("click", ()=>{ if(idx<QUESTIONS.length-1){ idx++; render(); } });
+/* ========= buttons ========= */
+$("#prevBtn").addEventListener("click",()=>{ if(idx>0){ idx--; render(); } });
+$("#nextBtn").addEventListener("click",()=>{ if(idx<QUESTIONS.length-1){ idx++; render(); } });
 $("#finishBtn").addEventListener("click", showResults);
 
 /* init */
